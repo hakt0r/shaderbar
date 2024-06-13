@@ -1,0 +1,36 @@
+[package]
+name = "shaderbar"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cairo-rs = { version = "0.19.4", features = ["png", "freetype-rs"] }
+chrono = "0.4.38"
+color-eyre = "0.6.3"
+epoxy = "0.1.0"
+glib = "0.19.7"
+glium = "0.34.0"
+gtk = "0.18.1"
+gtk4 = "0.8.2"
+gtk4-layer-shell = "0.3.0"
+image = "0.25.1"
+libloading = "0.8.3"
+rand = "0.8.5"
+serde = "1.0.203"
+system-tray = "0.2.0"
+tokio = { version = "1.37.0", features = [
+  "rt-multi-thread",
+  "fs",
+  "time",
+  "signal",
+] }
+tracing = "0.1.40"
+
+[build]
+rustflags = ["-C", "target-cpu=native", "-Z", "threads=8"]
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+strip = "debuginfo"
+debug = false
