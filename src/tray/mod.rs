@@ -4,7 +4,6 @@ mod interface;
 
 use crate::tray::diff::get_diffs;
 use color_eyre::{Report, Result};
-use gtk4::prelude::*;
 use gtk4::IconTheme;
 use interface::TrayMenu;
 use std::collections::HashMap;
@@ -78,11 +77,19 @@ const fn default_icon_size() -> u32 {
     16
 }
 
+type ReceiveMessage = Event;
+
 fn spawn_controller(
     widget: gtk4::Widget,
-    mut rx: mpsc::Receiver<Self::ReceiveMessage>,
+    context: &WidgetContext<Self::SendMessage, Self::ReceiveMessage>,
+    mut rx: mpsc::Receiver<ReceiveMessage>,
 ) -> Result<()> {
-    // listen to tray updates
+    let tx = context.tx.clone();
+
+    let client = context.try_client::<tray::Client>()?;
+    let mut tray_rx = client.subscribe();
+
+    let initial_items = lock!(client.items()).clone();
     spawn(async move {
         for (key, (item, menu)) in initial_items {
             send_async!(

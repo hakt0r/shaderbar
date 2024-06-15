@@ -4,10 +4,13 @@ use gl::*;
 use gtk4::{glib, prelude::*};
 use gtk4_layer_shell::LayerShell;
 use std::{borrow::BorrowMut, ptr, time::Duration};
+mod desktop_file;
+mod error;
 mod gl;
+mod image;
 mod sensors;
 mod state;
-// mod tray;
+mod tray;
 
 static mut READY: Option<bool> = None;
 

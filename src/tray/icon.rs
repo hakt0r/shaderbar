@@ -5,7 +5,6 @@ use glib::ffi::g_strfreev;
 use glib::translate::ToGlibPtr;
 use gtk4::ffi::gtk_icon_theme_get_search_path;
 use gtk4::gdk_pixbuf::{Colorspace, InterpType, Pixbuf};
-use gtk4::prelude::IconThemeExt;
 use gtk4::{IconLookupFlags, IconTheme, Image};
 use std::collections::HashSet;
 use std::ffi::CStr;

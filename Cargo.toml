@@ -5,8 +5,10 @@ edition = "2021"
 
 [dependencies]
 cairo-rs = { version = "0.19.4", features = ["png", "freetype-rs"] }
+cfg-if = "1.0.0"
 chrono = "0.4.38"
 color-eyre = "0.6.3"
+dirs = "5.0.1"
 epoxy = "0.1.0"
 glib = "0.19.7"
 glium = "0.34.0"
@@ -25,6 +27,7 @@ tokio = { version = "1.37.0", features = [
   "signal",
 ] }
 tracing = "0.1.40"
+walkdir = "2.5.0"
 
 [build]
 rustflags = ["-C", "target-cpu=native", "-Z", "threads=8"]
