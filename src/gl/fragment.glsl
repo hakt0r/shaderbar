@@ -1,4 +1,4 @@
-#version 140
+#version 430
 
 in vec2 v_tex_coords;
 out vec4 f_color;
@@ -33,6 +33,7 @@ uniform sensors {
   uint load_count;
   uint load_color[24];
   uint load[2048];
+  uint text[256];
 };
 
 uniform sampler2D tex;
@@ -47,8 +48,6 @@ uniform sampler2D tex;
 */
 
 float TAU = 6.28318530718;
-
-uint text_start = 256u;
 
 float bar_dim = 0.8;
 float bar_max = 5.0;
@@ -159,66 +158,49 @@ vec4 bar_history_pixel(inout vec4 O, vec2 U, uint bar_index) {
     ╚═╝   ╚══════╝╚═╝  ╚═╝   ╚═╝
 */
 
-#define _MINUS  TXT(p, uvec3(     262144,    268451841,  16778240));
-#define _PERIOD TXT(p, uvec3(          0,       393240,         0));
-#define _COLON  TXT(p, uvec3(          0,  2349215744u,         1));
-#define _0      TXT(p, uvec3(  272596992,    151274514, 266355009));
-#define _1      TXT(p, uvec3( 1073872896,  4278192128u,         1));
-#define _2      TXT(p, uvec3(  274825216,    285508628, 274743873));
-#define _3      TXT(p, uvec3(  270565376,    285492240, 249578561));
-#define _4      TXT(p, uvec3( 2148270080u,   570462210,  33587136));
-#define _5      TXT(p, uvec3( 2418262016u,   151266320, 252723777));
-#define _6      TXT(p, uvec3( 2420080640u,   151266320, 251675201));
-#define _7      TXT(p, uvec3(  268451840,    822543360,   3146560));
-#define _8      TXT(p, uvec3(  272334848,    285492241, 249578561));
-#define _9      TXT(p, uvec3(  268664832,    285492241, 132129857));
-#define _       CURSOR.x += 8;
-vec3 TXT_COL = vec3(0.0);
+uint text_start = 263;
+float char_width = 7.0;
+float char_height = 16.0;
 
-ivec2 CURSOR_START = ivec2(0), CURSOR = ivec2(0);
+ivec2 bar_size = ivec2(1920, 24);
+ivec2 bar_padding = ivec2(0, (bar_size.y - char_height) / 2);
+int tex_width = 1323;
+int tex_height = 16;
 
-void TXT(vec2 p, uvec3 g) {
-  _ int x = int(p.x) - CURSOR.x, y = CURSOR.y - int(p.y), b = x * 14 + y - 16;
-  if(x > 0 && x < 8 && y >= 0 && y < 14 && b >= 0)
-    TXT_COL += vec3((g[b / 32] >> (b & 31)) & 1u);
-}
-void _NUM(vec2 p, float n) {
-  if(n < 0.) {
-    _MINUS n = -n;
-  }
-  for(int i = 6, k = 100000000, m = int(round(n * 100.0)); i > -3; i--, k /= 10) {
-    int d = m >= k || i <= 0 ? int(m / k) % 10 : -1;
-    if(i == -1)
-      _PERIOD if(d == 0)
-      _0 if(d == 1)
-      _1 if(d == 2)
-      _2 if(d == 3)
-      _3 if(d == 4)
-      _4 if(d == 5)
-      _5 if(d == 6)
-      _6 if(d == 7)
-      _7 if(d == 8)
-      _8 if(d == 9)
-      _9 if(i == 0 && (int(m) % 100) == 0)
-      break;
-  }
-}
+//float(char_width);
+//float(char_height);
 
-#define NUM(value) _NUM(p,value);
+vec4 green = vec4(0., .2, 0., .1);
+uint align_char(uint char);
 
-vec4 draw_text(vec4 O) {
-  CURSOR_START = CURSOR = ivec2(float(text_start), 17.);
-  vec2 p = gl_FragCoord.xy;
+vec4 draw_text(vec4 O, vec2 U) {
+  ivec2 Ui = ivec2(U);
   ivec3 time = u32d3(time);
+  bool within_top_boundary = Ui.y < bar_size.y - bar_padding.y;
+  bool within_bottom_boundary = Ui.y > bar_padding.y;
+  bool is_text = U.x > text_start && U.x < width - 85. && within_top_boundary && within_bottom_boundary;
+  bool is_gap = mod(U.x - text_start, char_width) > char_width;
+  if(!is_text)
+    return O;
 
-  NUM(time.x);
-  _COLON;
-  NUM(time.y);
-  _COLON;
-  NUM(time.z);
+  uint char_index = uint(floor((U.x - text_start) / char_width));
+  uint page = uint(floor(char_index / 4));
+  uint byte = uint(char_index % 4);
+  uint texture_index = align_char(u32d4(text[page])[byte]);
+  texture_index = texture_index;
+  uint local_x = Ui.x - text_start - char_index * uint(char_width);
+  uint char_x = int(local_x + char_width * texture_index);
+  uint char_y = Ui.y - 5;
+  vec4 color = texelFetch(tex, ivec2(char_x, char_y), 0);
+  return mix(O, color, color.a);
+}
 
-  O += vec4(mix(vec3(.2, .2, .2), vec3(.1, .8, .1), TXT_COL), 1.0);
-  return O;
+uint align_char(uint char) {
+  // we cut out the non-printable characters
+  // so we need to adjust the index
+  if(char > 94u)
+    return char - 33u - 94u;
+  return char - 33u;
 }
 
 /*
@@ -232,17 +214,10 @@ vec4 draw_text(vec4 O) {
 
 void main() {
   vec2 U = gl_FragCoord.xy;
-  vec4 O = vec4(0.0, 0.0, 0.0, 0.0);
-  /* if(U.x > 184.0 || U.y > 24.0) {
-    f_color = vec4(1. - U.x / 1920, 0.0, 0.0, 1.0);
-    return;
-  } */
+  vec4 O = vec4(0.0, 0.0, 0.0, 1.0);
   O = bar(O, U);
   O = gague(O, U);
-  O = draw_text(O);
-
-  // O = texture(tex, v_tex_coords);
-
+  O = draw_text(O, U);
   f_color = O;
   return;
 }

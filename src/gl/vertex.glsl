@@ -8,5 +8,5 @@ const mat4 IDENTITY = mat4(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0
 
 void main() {
   v_tex_coords = tex_coords;
-  gl_Position = vec4(position, 0.0, 1.0) * IDENTITY;
+  gl_Position = IDENTITY * vec4(position, 0.0, 1.0);
 }

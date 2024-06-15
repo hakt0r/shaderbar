@@ -1,25 +1,30 @@
 use super::uniform::initialize_uniforms;
 use crate::gl::tools::read_shader;
 use crate::gl::uniform::{default_index_buffer, default_vertex_buffer, SensorValues, Vertex};
-use color_eyre::owo_colors::OwoColorize;
-use glium::{program, uniform, uniforms::UniformBuffer, Frame, IndexBuffer, Surface, VertexBuffer};
-use gtk4::cairo::{Context, Format, ImageSurface};
-use gtk4::subclass::gl_area::GLAreaImpl;
-use gtk4::{glib, prelude::*, subclass::prelude::*};
-use std::io::BufReader;
-use std::{cell::RefCell, rc::Rc};
+use glib::Propagation;
+use glium::backend::Context as GliumContext;
+use glium::{
+    program, texture::RawImage2d, texture::Texture2d, uniform, uniforms::UniformBuffer, Frame,
+    IndexBuffer, Surface, VertexBuffer,
+};
+use gtk4::{
+    gdk::GLContext, prelude::*, subclass::gl_area::GLAreaImpl, subclass::prelude::*, GLArea,
+};
+use std::io::Cursor;
+use std::{cell::RefCell, process::exit, rc::Rc};
+
 pub struct Renderer {
-    pub context: Rc<glium::backend::Context>,
+    pub context: Rc<GliumContext>,
     pub triangles: VertexBuffer<Vertex>,
     pub index: IndexBuffer<u16>,
     pub buffer: UniformBuffer<SensorValues>,
     pub program: glium::Program,
     pub frame: u64,
-    pub font_texture: Rc<RefCell<Option<glium::texture::Texture2d>>>,
+    pub font: Texture2d,
 }
 
 impl Renderer {
-    fn new(context: Rc<glium::backend::Context>) -> Self {
+    fn new(context: Rc<GliumContext>) -> Self {
         let vertex = read_shader("src/gl/vertex.glsl");
         let fragment = read_shader("src/gl/fragment.glsl");
         let index = default_index_buffer(&context);
@@ -31,10 +36,23 @@ impl Renderer {
                     "\x1b[31m\nFailed to create program:\n\x1b[0m \x1b[33m{}\x1b[0m",
                     err
                 );
-                std::process::exit(1);
+                exit(1);
             });
 
         let buffer = initialize_uniforms(context.clone());
+
+        let image = image::load(
+            Cursor::new(&include_bytes!("../font.png")[..]),
+            image::ImageFormat::Png,
+        )
+        .unwrap()
+        .to_rgba8();
+
+        let dimensions = image.dimensions();
+        eprintln!("Dimensions: {:?}", dimensions);
+        let image = RawImage2d::from_raw_rgba_reversed(&image.into_raw(), dimensions);
+        let texture = Texture2d::new(&context, image).unwrap();
+
         Renderer {
             buffer,
             context,
@@ -42,69 +60,33 @@ impl Renderer {
             index,
             program,
             triangles,
-            font_texture: Rc::new(RefCell::new(None)),
+            font: texture,
         }
-    }
-
-    fn _prepare_textures(&self) {
-        let file_exists = std::path::Path::new("texture.png").exists();
-        if !file_exists {
-            let mut file = std::fs::File::create("texture.png").unwrap();
-            let surface = ImageSurface::create(Format::ARgb32, 256, 256).unwrap();
-            let cr = Context::new(&surface).unwrap();
-            cr.set_source_rgba(1.0, 1.0, 1.0, 1.0);
-            _ = cr.paint();
-            _ = cr.font_options().unwrap().antialias().green();
-            let font = gtk4::cairo::FontFace::toy_create(
-                "SauceCodePro Nerd Font",
-                gtk4::cairo::FontSlant::Normal,
-                gtk4::cairo::FontWeight::Normal,
-            )
-            .unwrap();
-            cr.set_font_face(&font);
-            cr.set_font_size(8.0);
-            cr.set_source_rgba(0.0, 0.0, 0.0, 1.0);
-            cr.move_to(0.0, 8.0);
-            _ = cr.show_text(
-                "0123456789:;<=?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz",
-            );
-            _ = surface.write_to_png(&mut file);
-        }
-        let image = image::load(
-            BufReader::new(std::fs::File::open("texture.png").unwrap()),
-            image::ImageFormat::Png,
-        )
-        .unwrap()
-        .to_rgba8();
-        let image_dimensions = image.dimensions();
-        let image =
-            glium::texture::RawImage2d::from_raw_rgba_reversed(&image.into_raw(), image_dimensions);
-        let texture = glium::texture::Texture2d::new(&self.context, image).unwrap();
-        let mut font_texture = self.font_texture.borrow_mut();
-        *font_texture = Some(texture);
     }
 
     fn draw(&mut self) {
         let dimensions = self.context.get_framebuffer_dimensions();
-
         let mut frame = Frame::new(self.context.clone(), dimensions);
-
         {
             let mut map = self.buffer.map();
             map.width = dimensions.0;
         }
-
-        frame
-            .draw(
-                &self.triangles,
-                &self.index,
-                &self.program,
-                &uniform! { sensors: &*self.buffer },
-                &Default::default(),
-            )
-            .unwrap();
+        unsafe { self.context.as_ref().rebind_textures() }
+        {
+            frame
+                .draw(
+                    &self.triangles,
+                    &self.index,
+                    &self.program,
+                    &uniform! {
+                        tex: &self.font,
+                        sensors: &*self.buffer,
+                    },
+                    &Default::default(),
+                )
+                .unwrap();
+        }
         frame.finish().unwrap();
-
         self.frame += 1;
     }
 }
@@ -118,7 +100,7 @@ pub struct GliumGLArea {
 impl ObjectSubclass for GliumGLArea {
     const NAME: &'static str = "GliumGLArea";
     type Type = crate::gl::GliumGLArea;
-    type ParentType = gtk4::GLArea;
+    type ParentType = GLArea;
 }
 
 impl ObjectImpl for GliumGLArea {}
@@ -134,11 +116,10 @@ impl WidgetImpl for GliumGLArea {
         }
 
         let context =
-            unsafe { glium::backend::Context::new(widget.clone(), true, Default::default()) }
-                .unwrap();
+            unsafe { GliumContext::new(widget.clone(), true, Default::default()) }.unwrap();
         unsafe {
             RENDERER = Some(Renderer::new(context));
-            RENDERER.as_mut().unwrap()._prepare_textures();
+            // RENDERER.as_mut().unwrap()._prepare_textures();
         }
     }
 
@@ -148,14 +129,14 @@ impl WidgetImpl for GliumGLArea {
 }
 
 impl GLAreaImpl for GliumGLArea {
-    fn render(&self, _context: &gtk4::gdk::GLContext) -> glib::Propagation {
+    fn render(&self, _context: &GLContext) -> Propagation {
         let renderer = renderer();
         if renderer.is_some() {
             renderer.unwrap().draw();
         } else {
             eprintln!("Renderer not initialized");
         }
-        glib::Propagation::Stop
+        Propagation::Stop
     }
 }
 

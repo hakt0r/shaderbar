@@ -34,3 +34,9 @@ codegen-units = 1
 lto = "fat"
 strip = "debuginfo"
 debug = false
+
+[package.metadata.patch]
+crates = ["glium"]
+
+[patch.crates-io]
+glium = { path = "./target/patch/glium-0.34.0" }

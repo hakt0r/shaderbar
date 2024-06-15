@@ -1,8 +1,9 @@
 use super::diff::{Diff, MenuItemDiff};
 use crate::tray::spawn;
 use crate::try_send;
+// use gtk::{CheckMenuItem, Image, Label, Menu, MenuItem, SeparatorMenuItem};
 use gtk4::prelude::*;
-use gtk4::{CheckMenuItem, Image, Label, Menu, MenuItem, SeparatorMenuItem};
+use gtk4::{Image, Label};
 use std::collections::HashMap;
 use system_tray::client::ActivateRequest;
 use system_tray::item::{IconPixmap, StatusNotifierItem};
