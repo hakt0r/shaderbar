@@ -22,6 +22,7 @@ Originally a LUA script for [ironbar](https://github.com/JakeStanger/ironbar), I
 - [ ] Configuration file
 - [x] Basic sensors
 - [x] Default shader
+- [x] Text rendering
 - [ ] Sensor Detection
 - [ ] Sensor Configuration
 - [ ] Tray
