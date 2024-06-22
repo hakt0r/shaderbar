@@ -1,0 +1,19 @@
+window {
+  background: transparent;
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #333;
+}
+
+.tray {
+  margin: 0;
+  padding: 4px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.tray:hover {
+  background: #00000033;
+}

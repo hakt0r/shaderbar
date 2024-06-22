@@ -12,7 +12,6 @@ out vec4 f_color;
  ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═════╝ ╚══════╝╚═╝  ╚═╝
 */
 
-float read_load_pixel(uint x, uint y);
 float read_pixel(uint index, uint ptr);
 ivec3 u32d3(uint data);
 ivec4 u32d4(uint data);
@@ -39,7 +38,6 @@ uniform sensors {
 };
 
 uniform sampler2D font;
-uniform sampler2D icon;
 
 /*
   ██████╗ ██████╗ ███╗   ██╗███████╗████████╗ █████╗ ███╗   ██╗████████╗███████╗
@@ -206,34 +204,6 @@ uint align_char(uint char) {
 }
 
 /*
- ██╗ ██████╗ ██████╗ ███╗   ██╗███████╗
- ██║██╔════╝██╔═══██╗████╗  ██║██╔════╝
- ██║██║     ██║   ██║██╔██╗ ██║███████╗
- ██║██║     ██║   ██║██║╚██╗██║╚════██║
- ██║╚██████╗╚██████╔╝██║ ╚████║███████║
- ╚═╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
-*/
-
-ivec2 icon_size = ivec2(16, 16);
-ivec2 icon_start = ivec2(100, 6);
-
-vec4 draw_icon(vec4 O, vec2 U) {
-  ivec2 Ui = ivec2(U);
-
-  if(Ui.x < icon_start.x || Ui.x > icon_start.x + icon_size.x * 16)
-    return O;
-  if(Ui.y < icon_start.y || Ui.y > icon_start.y + icon_size.y)
-    return O;
-  uint index = uint((Ui.x - icon_start.x) / icon_size.x);
-  ivec2 local = Ui - icon_start % icon_size;
-  ivec2 local_icon = ivec2(local.x % icon_size.x, local.y % icon_size.y);
-  ivec2 icon_index = ivec2(index % 16, index / 16);
-  ivec2 icon_pos = icon_index * icon_size + local_icon;
-  vec4 color = texelFetch(icon, icon_pos, 0);
-  return mix(O, color, color.a);
-}
-
-/*
  ███╗   ███╗ █████╗ ██╗███╗   ██╗
  ████╗ ████║██╔══██╗██║████╗  ██║
  ██╔████╔██║███████║██║██╔██╗ ██║
@@ -244,11 +214,10 @@ vec4 draw_icon(vec4 O, vec2 U) {
 
 void main() {
   vec2 U = gl_FragCoord.xy;
-  vec4 O = vec4(0.0, 0.0, 0.0, 1.0);
+  vec4 O = vec4(0.0, 0.0, 0.0, 0.0);
   O = bar(O, U);
   O = gague(O, U);
   O = draw_text(O, U);
-  O = draw_icon(O, U);
   f_color = O;
   return;
 }
@@ -273,19 +242,6 @@ ivec3 u32d3(uint data) {
 vec3 u32color(uint data) {
   return vec3((data >> 24) & 0xFFu, (data >> 16) & 0xFFu, (data >> 8) & 0xFFu) / 255.0;
 }
-
-float read_load_pixel(uint ptr, uint index) {
-  uint page_index = index * 64u + uint(floor(ptr / 4u));
-  uint byte_index = ptr % 4u;
-  ivec4 page = u32d4(load[page_index]);
-  return float(page[byte_index]) / 255.0;
-}
-
-/* float read_load_pixel(uint index, uint ptr) {
-  ivec4 page = u32d4(load[int(ptr * 64u + floor(index / 4u))]);
-  return page[index % 4u] / 255.0;
-}
- */
 
 float read_pixel(uint index, uint ptr) {
   ivec4 page = u32d4(load[int(index * 64u + floor(float(ptr) / 4.0))]);

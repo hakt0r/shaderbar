@@ -1,7 +1,6 @@
 use super::uniform::initialize_uniforms;
 use crate::gl::tools::read_shader;
 use crate::gl::uniform::{default_index_buffer, default_vertex_buffer, SensorValues, Vertex};
-use crate::tray::icon::icon_state;
 use glib::Propagation;
 use glium::backend::Context as GliumContext;
 use glium::{
@@ -66,7 +65,6 @@ impl Renderer {
     }
 
     fn draw(&mut self) {
-        let texture = &icon_state().texture;
         let dimensions = self.context.get_framebuffer_dimensions();
         let mut frame = Frame::new(self.context.clone(), dimensions);
         {
@@ -82,8 +80,6 @@ impl Renderer {
                     &self.program,
                     &uniform! {
                         sensors: &*self.buffer,
-                        icon_fix: texture,
-                        icon: texture,
                         font: &self.font,
                     },
                     &Default::default(),

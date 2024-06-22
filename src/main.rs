@@ -5,6 +5,7 @@ use gl::*;
 use gtk4::{glib, prelude::*};
 use gtk4_layer_shell::LayerShell;
 use std::{borrow::BorrowMut, ptr, time::Duration};
+use utils::global;
 mod desktop_file;
 mod error;
 mod gl;
@@ -12,29 +13,30 @@ mod sensors;
 mod state;
 mod tray;
 
-static mut READY: Option<bool> = None;
-
-pub fn ready() -> bool {
-    unsafe {
-        return READY.is_some();
+mod utils {
+    macro_rules! global {
+        ($name:ident, $type:ty, $default:expr) => {
+            pub fn $name() -> &'static mut $type {
+                static mut VALUE: Option<$type> = None;
+                unsafe { VALUE.get_or_insert_with(|| $default).borrow_mut() }
+            }
+        };
     }
-}
-
-pub fn set_ready() {
-    unsafe {
-        READY = Some(true);
+    macro_rules! global_init {
+        ($name:ident, $type:ty, $initializer:expr) => {
+            pub fn $name() -> &'static mut $type {
+                static mut VALUE: Option<$type> = None;
+                unsafe { VALUE.get_or_insert_with($initializer) }
+            }
+        };
     }
+    pub(crate) use global;
+    pub(crate) use global_init;
 }
 
-pub fn sensors() -> &'static mut Sensors {
-    static mut SENSORS: Option<Sensors> = None;
-    unsafe { return SENSORS.get_or_insert_with(|| Sensors::new()).borrow_mut() }
-}
-
-pub fn widget() -> &'static GliumGLArea {
-    static mut WIDGET: Option<GliumGLArea> = None;
-    unsafe { return WIDGET.get_or_insert_with(|| GliumGLArea::default()) }
-}
+global!(widget, GliumGLArea, GliumGLArea::default());
+global!(is_ready, Option<bool>, Some(false));
+global!(sensors, Sensors, Sensors::new());
 
 #[tokio::main]
 async fn main() -> glib::ExitCode {
@@ -69,8 +71,16 @@ async fn main() -> glib::ExitCode {
         .application_id("de.hakt0r.shaderbar")
         .build();
 
-    application.connect_activate(move |application| {
-        build_ui(application);
+    application.connect_activate(move |app| {
+        let provider = gtk4::CssProvider::new();
+        provider.load_from_path(std::path::Path::new("src/style.css"));
+        gtk4::style_context_add_provider_for_display(
+            &gtk4::gdk::Display::default().expect("Could not connect to a display."),
+            &provider,
+            gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
+        );
+
+        build_ui(app);
     });
 
     return application.run();
@@ -98,23 +108,20 @@ fn build_ui(application: &gtk4::Application) {
     window.set_anchor(gtk4_layer_shell::Edge::Left, true);
     window.set_anchor(gtk4_layer_shell::Edge::Bottom, false);
 
-    let container = gtk4::Grid::builder()
-        .row_spacing(0)
-        .column_spacing(0)
-        .build();
+    let container = gtk4::Fixed::new();
 
     window.set_child(Some(&container));
 
     let widget = widget();
     widget.set_width_request(1920);
     widget.set_height_request(24);
-    container.attach(widget, 0, 0, 1, 1);
+    container.put(widget, 0f64, 0f64);
 
-    tray::tray();
+    container.put(&tray::tray().widget, 16f64, 0f64);
 
     window.present();
 
-    set_ready();
+    (*is_ready()).replace(true);
 }
 
 async fn render_timer() {
@@ -140,7 +147,7 @@ async fn read_sensors_lowfreq() {
 }
 
 async fn readyness() {
-    while !ready() {
+    while !is_ready().unwrap() {
         glib::timeout_future(Duration::from_millis(100)).await;
     }
 }
