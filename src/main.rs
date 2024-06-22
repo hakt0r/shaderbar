@@ -1,5 +1,6 @@
 use crate::sensors::Sensors;
 use crate::state::state;
+use crate::tray::create_tray;
 use gl::*;
 use gtk4::{glib, prelude::*};
 use gtk4_layer_shell::LayerShell;
@@ -7,7 +8,6 @@ use std::{borrow::BorrowMut, ptr, time::Duration};
 mod desktop_file;
 mod error;
 mod gl;
-mod image;
 mod sensors;
 mod state;
 mod tray;
@@ -36,7 +36,8 @@ pub fn widget() -> &'static GliumGLArea {
     unsafe { return WIDGET.get_or_insert_with(|| GliumGLArea::default()) }
 }
 
-fn main() -> glib::ExitCode {
+#[tokio::main]
+async fn main() -> glib::ExitCode {
     let library = unsafe { libloading::os::unix::Library::new("libepoxy.so.0") }.unwrap();
 
     epoxy::load_with(|name| {
@@ -58,6 +59,10 @@ fn main() -> glib::ExitCode {
 
     glib::spawn_future_local(async move {
         render_timer().await;
+    });
+
+    glib::spawn_future_local(async move {
+        create_tray().await;
     });
 
     let application = gtk4::Application::builder()
@@ -93,10 +98,19 @@ fn build_ui(application: &gtk4::Application) {
     window.set_anchor(gtk4_layer_shell::Edge::Left, true);
     window.set_anchor(gtk4_layer_shell::Edge::Bottom, false);
 
+    let container = gtk4::Grid::builder()
+        .row_spacing(0)
+        .column_spacing(0)
+        .build();
+
+    window.set_child(Some(&container));
+
     let widget = widget();
-    widget.set_width_request(240);
+    widget.set_width_request(1920);
     widget.set_height_request(24);
-    window.set_child(Some(widget));
+    container.attach(widget, 0, 0, 1, 1);
+
+    let tray = tray::tray();
 
     window.present();
 

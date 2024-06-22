@@ -1,6 +1,7 @@
 use super::uniform::initialize_uniforms;
 use crate::gl::tools::read_shader;
 use crate::gl::uniform::{default_index_buffer, default_vertex_buffer, SensorValues, Vertex};
+use crate::tray::icon::icon_state;
 use glib::Propagation;
 use glium::backend::Context as GliumContext;
 use glium::{
@@ -73,14 +74,16 @@ impl Renderer {
         }
         unsafe { self.context.as_ref().rebind_textures() }
         {
+            let texture = &icon_state().texture;
             frame
                 .draw(
                     &self.triangles,
                     &self.index,
                     &self.program,
                     &uniform! {
-                        tex: &self.font,
                         sensors: &*self.buffer,
+                        icons: texture,
+                        font: &self.font,
                     },
                     &Default::default(),
                 )
@@ -94,6 +97,7 @@ impl Renderer {
 #[derive(Default)]
 pub struct GliumGLArea {
     pub renderer: RefCell<Option<Renderer>>,
+    pub context: Option<Rc<GliumContext>>,
 }
 
 #[glib::object_subclass]
@@ -114,12 +118,9 @@ impl WidgetImpl for GliumGLArea {
         if widget.as_ref().error().is_some() {
             return;
         }
-
-        let context =
-            unsafe { GliumContext::new(widget.clone(), true, Default::default()) }.unwrap();
         unsafe {
+            let context = GliumContext::new(widget.clone(), true, Default::default()).unwrap();
             RENDERER = Some(Renderer::new(context));
-            // RENDERER.as_mut().unwrap()._prepare_textures();
         }
     }
 

@@ -1,4 +1,4 @@
-mod render;
+pub mod render;
 mod tools;
 pub mod uniform;
 

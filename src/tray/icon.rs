@@ -1,122 +1,141 @@
-use crate::image::ImageProvider;
-use crate::tray::interface::TrayMenu;
-use color_eyre::{Report, Result};
-use glib::ffi::g_strfreev;
-use glib::translate::ToGlibPtr;
-use gtk4::ffi::gtk_icon_theme_get_search_path;
-use gtk4::gdk_pixbuf::{Colorspace, InterpType, Pixbuf};
-use gtk4::{IconLookupFlags, IconTheme, Image};
-use std::collections::HashSet;
-use std::ffi::CStr;
-use std::os::raw::{c_char, c_int};
-use std::ptr;
+use crate::gl::render::renderer;
+use glium::texture::{texture2d::Texture2d, RawImage2d, Texture2dDataSink};
+use glob::glob;
+use std::{io::Cursor, u8};
 
-/// Gets the GTK icon theme search paths by calling the FFI function.
-/// Conveniently returns the result as a `HashSet`.
-fn get_icon_theme_search_paths(icon_theme: &IconTheme) -> HashSet<String> {
-    let mut gtk_paths: *mut *mut c_char = ptr::null_mut();
-    let mut n_elements: c_int = 0;
-    let mut paths = HashSet::new();
+// store images in a 64x64 texture
+// store the name of the image to map to an id when updating the texture
+
+pub struct IconState {
+    pub raw: RawImage2d<'static, u8>,
+    pub texture: Texture2d,
+    pub width: u32,
+    pub height: u32,
+    pub name: Vec<String>,
+}
+
+pub fn icon_state() -> &'static mut IconState {
+    static mut ICON_STATE: Option<IconState> = None;
+    let context = &renderer().unwrap().context;
     unsafe {
-        gtk_icon_theme_get_search_path(
-            icon_theme.to_glib_none().0,
-            &mut gtk_paths,
-            &mut n_elements,
-        );
-        // n_elements is never negative (that would be weird)
-        for i in 0..n_elements as usize {
-            let c_str = CStr::from_ptr(*gtk_paths.add(i));
-            if let Ok(str) = c_str.to_str() {
-                paths.insert(str.to_owned());
-            }
-        }
-
-        g_strfreev(gtk_paths);
-    }
-
-    paths
-}
-
-pub fn get_image(
-    item: &TrayMenu,
-    icon_theme: &IconTheme,
-    size: u32,
-    prefer_icons: bool,
-) -> Result<Image> {
-    if !prefer_icons && item.icon_pixmap.is_some() {
-        get_image_from_pixmap(item, size)
-    } else {
-        get_image_from_icon_name(item, icon_theme, size)
-            .or_else(|_| get_image_from_pixmap(item, size))
+        return ICON_STATE.get_or_insert_with(|| IconState {
+            raw: RawImage2d {
+                data: std::borrow::Cow::Owned(vec![0; 64 * 64 * 4]),
+                width: 64,
+                height: 64,
+                format: glium::texture::ClientFormat::U8U8U8U8,
+            },
+            texture: Texture2d::empty(&*context, 64, 64).unwrap(),
+            width: 0,
+            height: 0,
+            name: Vec::new(),
+        });
     }
 }
 
-/// Attempts to get a GTK `Image` component
-/// for the status notifier item's icon.
-fn get_image_from_icon_name(item: &TrayMenu, icon_theme: &IconTheme, size: u32) -> Result<Image> {
-    if let Some(path) = item.icon_theme_path.as_ref() {
-        if !path.is_empty() && !get_icon_theme_search_paths(icon_theme).contains(path) {
-            icon_theme.append_search_path(path);
-        }
-    }
+/*
+  █████╗ ██████╗ ██████╗
+ ██╔══██╗██╔══██╗██╔══██╗
+ ███████║██║  ██║██║  ██║
+ ██╔══██║██║  ██║██║  ██║
+ ██║  ██║██████╔╝██████╔╝
+ ╚═╝  ╚═╝╚═════╝ ╚═════╝
+*/
 
-    let icon_info = item.icon_name.as_ref().and_then(|icon_name| {
-        icon_theme.lookup_icon(icon_name, size as i32, IconLookupFlags::empty())
-    });
-
-    if let Some(icon_info) = icon_info {
-        let pixbuf = icon_info.load_icon()?;
-        let image = Image::new();
-        ImageProvider::create_and_load_surface(&pixbuf, &image)?;
-        Ok(image)
-    } else {
-        Err(Report::msg("could not find icon"))
+pub fn add(id: String, name: String) {
+    let state = icon_state();
+    state.name.push(id);
+    eprintln!("Loading icon: {}", name);
+    let path = resolve(name.clone());
+    if path.is_empty() {
+        eprintln!("Icon not found: {}", name);
+        return;
     }
+    let id = state.name.len() as u32;
+    // load texture, icon, add icon to texture
+    let image = image::load(
+        Cursor::new(std::fs::read(path).unwrap()),
+        image::ImageFormat::Png,
+    )
+    .unwrap()
+    .to_rgba8();
+    let (width, height) = image.dimensions();
+    let raw = RawImage2d::from_raw_rgba_reversed(&image.into_raw(), (width, height));
+    state.texture.write(icon_rect(id), raw);
 }
 
-/// Attempts to get an image from the item pixmap.
-///
-/// The pixmap is supplied in ARGB32 format,
-/// which has 8 bits per sample and a bit stride of `4*width`.
-/// The Pixbuf expects RGBA32 format, so some channel shuffling
-/// is required.
-fn get_image_from_pixmap(item: &TrayMenu, size: u32) -> Result<Image> {
-    const BITS_PER_SAMPLE: i32 = 8;
+/*
+ ██████╗ ███████╗███╗   ███╗ ██████╗ ██╗   ██╗███████╗
+ ██╔══██╗██╔════╝████╗ ████║██╔═══██╗██║   ██║██╔════╝
+ ██████╔╝█████╗  ██╔████╔██║██║   ██║██║   ██║█████╗
+ ██╔══██╗██╔══╝  ██║╚██╔╝██║██║   ██║╚██╗ ██╔╝██╔══╝
+ ██║  ██║███████╗██║ ╚═╝ ██║╚██████╔╝ ╚████╔╝ ███████╗
+ ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝ ╚═════╝   ╚═══╝  ╚══════╝
+*/
 
-    let pixmap = item
-        .icon_pixmap
-        .as_ref()
-        .and_then(|pixmap| pixmap.first())
-        .ok_or_else(|| Report::msg("Failed to get pixmap from tray icon"))?;
-
-    let mut pixels = pixmap.pixels.to_vec();
-
-    for i in (0..pixels.len()).step_by(4) {
-        let alpha = pixels[i];
-        pixels[i] = pixels[i + 1];
-        pixels[i + 1] = pixels[i + 2];
-        pixels[i + 2] = pixels[i + 3];
-        pixels[i + 3] = alpha;
+pub fn remove(name: String) {
+    let state = icon_state();
+    let index_search = state.name.iter().position(|x| *x == name);
+    if index_search.is_none() {
+        eprintln!("Icon not found: {}", name);
+        return;
     }
-
-    let row_stride = pixmap.width * 4;
-    let bytes = glib::Bytes::from(&pixels);
-
-    let pixbuf = Pixbuf::from_bytes(
-        &bytes,
-        Colorspace::Rgb,
-        true,
-        BITS_PER_SAMPLE,
-        pixmap.width,
-        pixmap.height,
-        row_stride,
+    let index = index_search.unwrap();
+    state.name.remove(index);
+    let id = index as u32;
+    eprintln!("Removing icon[{}] id={}", name, id);
+    state.texture.write(
+        icon_rect(id),
+        RawImage2d {
+            data: std::borrow::Cow::Owned(vec![0; 16 * 16 * 4]),
+            width: 16,
+            height: 16,
+            format: glium::texture::ClientFormat::U8U8U8U8,
+        },
     );
+}
 
-    let pixbuf = pixbuf
-        .scale_simple(size as i32, size as i32, InterpType::Bilinear)
-        .unwrap_or(pixbuf);
+/*
+ ██████╗ ███████╗███████╗ ██████╗ ██╗    ██╗   ██╗███████╗    ██╗ ██████╗ ██████╗ ███╗   ██╗
+ ██╔══██╗██╔════╝██╔════╝██╔═══██╗██║    ██║   ██║██╔════╝    ██║██╔════╝██╔═══██╗████╗  ██║
+ ██████╔╝█████╗  ███████╗██║   ██║██║    ██║   ██║█████╗      ██║██║     ██║   ██║██╔██╗ ██║
+ ██╔══██╗██╔══╝  ╚════██║██║   ██║██║    ╚██╗ ██╔╝██╔══╝      ██║██║     ██║   ██║██║╚██╗██║
+ ██║  ██║███████╗███████║╚██████╔╝███████╗╚████╔╝ ███████╗    ██║╚██████╗╚██████╔╝██║ ╚████║
+ ╚═╝  ╚═╝╚══════╝╚══════╝ ╚═════╝ ╚══════╝ ╚═══╝  ╚══════╝    ╚═╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝
+*/
 
-    let image = Image::new();
-    ImageProvider::create_and_load_surface(&pixbuf, &image)?;
-    Ok(image)
+pub fn resolve(name: String) -> String {
+    let mut path = String::from("/usr/share/icons/*/16x16/**/");
+    path.push_str(&name);
+    path.push_str(".png");
+    let mut resolved = String::from("");
+    for entry in glob(&path).expect("Failed to read glob pattern") {
+        match entry {
+            Ok(path) => {
+                resolved = path.display().to_string();
+                break;
+            }
+            Err(e) => println!("{:?}", e),
+        }
+    }
+    return resolved;
+}
+
+/*
+ ████████╗ ██████╗  ██████╗ ██╗     ███████╗
+ ╚══██╔══╝██╔═══██╗██╔═══██╗██║     ██╔════╝
+    ██║   ██║   ██║██║   ██║██║     ███████╗
+    ██║   ██║   ██║██║   ██║██║     ╚════██║
+    ██║   ╚██████╔╝╚██████╔╝███████╗███████║
+    ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝╚══════╝
+*/
+
+#[inline]
+fn icon_rect(id: u32) -> glium::Rect {
+    glium::Rect {
+        left: id % 4 * 16,
+        bottom: id / 4 * 16,
+        width: 16,
+        height: 16,
+    }
 }
