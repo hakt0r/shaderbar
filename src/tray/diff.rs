@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use system_tray::menu::{MenuItem, ToggleState};
 
 /// Diff change type and associated info.

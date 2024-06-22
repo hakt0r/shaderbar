@@ -39,13 +39,13 @@ pub async fn create_tray() {
                         },
                     );
                 }
-                system_tray::client::Event::Update(name, item) => {}
+                system_tray::client::Event::Update(id, item) => {
+                    eprintln!("Updating tray item: {}\n{:?}", id, item);
+                }
                 system_tray::client::Event::Remove(id) => {
                     icon::remove(id.clone());
                     items.remove(&id);
                 }
-
-                _ => {}
             }
         }
     });

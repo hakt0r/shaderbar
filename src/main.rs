@@ -110,7 +110,7 @@ fn build_ui(application: &gtk4::Application) {
     widget.set_height_request(24);
     container.attach(widget, 0, 0, 1, 1);
 
-    let tray = tray::tray();
+    tray::tray();
 
     window.present();
 

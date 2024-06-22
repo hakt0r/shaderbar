@@ -5,8 +5,8 @@ use crate::tray::icon::icon_state;
 use glib::Propagation;
 use glium::backend::Context as GliumContext;
 use glium::{
-    program, texture::RawImage2d, texture::Texture2d, uniform, uniforms::UniformBuffer, Frame,
-    IndexBuffer, Surface, VertexBuffer,
+    program, texture::*, uniform, uniforms::UniformBuffer, Frame, IndexBuffer, Surface,
+    VertexBuffer,
 };
 use gtk4::{
     gdk::GLContext, prelude::*, subclass::gl_area::GLAreaImpl, subclass::prelude::*, GLArea,
@@ -66,6 +66,7 @@ impl Renderer {
     }
 
     fn draw(&mut self) {
+        let texture = &icon_state().texture;
         let dimensions = self.context.get_framebuffer_dimensions();
         let mut frame = Frame::new(self.context.clone(), dimensions);
         {
@@ -74,7 +75,6 @@ impl Renderer {
         }
         unsafe { self.context.as_ref().rebind_textures() }
         {
-            let texture = &icon_state().texture;
             frame
                 .draw(
                     &self.triangles,
@@ -82,7 +82,8 @@ impl Renderer {
                     &self.program,
                     &uniform! {
                         sensors: &*self.buffer,
-                        icons: texture,
+                        icon_fix: texture,
+                        icon: texture,
                         font: &self.font,
                     },
                     &Default::default(),
@@ -91,6 +92,7 @@ impl Renderer {
         }
         frame.finish().unwrap();
         self.frame += 1;
+        unsafe { self.context.as_ref().rebind_textures() }
     }
 }
 

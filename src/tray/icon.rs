@@ -1,5 +1,8 @@
 use crate::gl::render::renderer;
-use glium::texture::{texture2d::Texture2d, RawImage2d, Texture2dDataSink};
+use glium::{
+    texture::{texture2d::Texture2d, RawImage2d},
+    uniforms::AsUniformValue,
+};
 use glob::glob;
 use std::{io::Cursor, u8};
 
@@ -51,7 +54,7 @@ pub fn add(id: String, name: String) {
         eprintln!("Icon not found: {}", name);
         return;
     }
-    let id = state.name.len() as u32;
+    let id = (state.name.len() - 1) as u32;
     // load texture, icon, add icon to texture
     let image = image::load(
         Cursor::new(std::fs::read(path).unwrap()),
@@ -62,6 +65,9 @@ pub fn add(id: String, name: String) {
     let (width, height) = image.dimensions();
     let raw = RawImage2d::from_raw_rgba_reversed(&image.into_raw(), (width, height));
     state.texture.write(icon_rect(id), raw);
+    unsafe {
+        state.texture.as_uniform_value();
+    }
 }
 
 /*

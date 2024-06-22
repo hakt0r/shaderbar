@@ -214,13 +214,23 @@ uint align_char(uint char) {
  ╚═╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
 */
 
-uint icon_start = 24u;
+ivec2 icon_size = ivec2(16, 16);
+ivec2 icon_start = ivec2(100, 6);
 
 vec4 draw_icon(vec4 O, vec2 U) {
-  if(U.x < icon_start || U.x > icon_start + 64u)
+  ivec2 Ui = ivec2(U);
+
+  if(Ui.x < icon_start.x || Ui.x > icon_start.x + icon_size.x * 16)
     return O;
-  O = texelFetch(icon, ivec2(U) % 64, 0);
-  return O;
+  if(Ui.y < icon_start.y || Ui.y > icon_start.y + icon_size.y)
+    return O;
+  uint index = uint((Ui.x - icon_start.x) / icon_size.x);
+  ivec2 local = Ui - icon_start % icon_size;
+  ivec2 local_icon = ivec2(local.x % icon_size.x, local.y % icon_size.y);
+  ivec2 icon_index = ivec2(index % 16, index / 16);
+  ivec2 icon_pos = icon_index * icon_size + local_icon;
+  vec4 color = texelFetch(icon, icon_pos, 0);
+  return mix(O, color, color.a);
 }
 
 /*
