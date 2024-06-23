@@ -17,3 +17,14 @@ window {
 .tray:hover {
   background: #00000033;
 }
+
+.tray>* {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.tray-disabled {
+  opacity: 0.5;
+}

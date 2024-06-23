@@ -34,6 +34,18 @@ mod utils {
     pub(crate) use global_init;
 }
 
+global!(
+    application,
+    gtk4::Application,
+    gtk4::Application::builder()
+        .application_id("de.hakt0r.shaderbar")
+        .build()
+);
+global!(
+    window,
+    gtk4::ApplicationWindow,
+    gtk4::ApplicationWindow::new(application())
+);
 global!(widget, GliumGLArea, GliumGLArea::default());
 global!(is_ready, Option<bool>, Some(false));
 global!(sensors, Sensors, Sensors::new());
@@ -67,9 +79,7 @@ async fn main() -> glib::ExitCode {
         create_tray().await;
     });
 
-    let application = gtk4::Application::builder()
-        .application_id("de.hakt0r.shaderbar")
-        .build();
+    let application = application();
 
     application.connect_activate(move |app| {
         let provider = gtk4::CssProvider::new();
@@ -87,7 +97,7 @@ async fn main() -> glib::ExitCode {
 }
 
 fn build_ui(application: &gtk4::Application) {
-    let window = gtk4::ApplicationWindow::new(application);
+    let window = window();
 
     window.init_layer_shell();
     window.set_title(Some(env!("CARGO_PKG_NAME")));
