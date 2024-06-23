@@ -6,8 +6,6 @@ use gtk4::{glib, prelude::*};
 use gtk4_layer_shell::LayerShell;
 use std::{borrow::BorrowMut, ptr, time::Duration};
 use utils::global;
-mod desktop_file;
-mod error;
 mod gl;
 mod sensors;
 mod state;
@@ -96,7 +94,7 @@ async fn main() -> glib::ExitCode {
     return application.run();
 }
 
-fn build_ui(application: &gtk4::Application) {
+fn build_ui(_: &gtk4::Application) {
     let window = window();
 
     window.init_layer_shell();

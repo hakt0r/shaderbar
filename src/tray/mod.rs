@@ -12,7 +12,6 @@ use system_tray::{
     menu::{MenuItem, ToggleState, ToggleType},
 };
 pub mod diff;
-pub mod icon;
 
 pub struct Tray {
     pub client: Option<Client>,
