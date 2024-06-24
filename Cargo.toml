@@ -8,6 +8,7 @@ cairo-rs = { version = "0.19.4", features = ["png", "freetype-rs"] }
 cfg-if = "1.0.0"
 chrono = "0.4.38"
 color-eyre = "0.6.3"
+colored = "2.1.0"
 dirs = "5.0.1"
 epoxy = "0.1.0"
 glib = "0.19.7"

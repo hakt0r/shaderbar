@@ -1,3 +1,4 @@
 target/
 texture.png
 node_modules/
+tray.js

@@ -1,4 +1,7 @@
 {
+  "wallpaper": {
+      "enabled": true
+  },
   "shaders": [
       {
           "name": "default",

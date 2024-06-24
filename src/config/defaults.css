@@ -4,6 +4,7 @@ window {
   font-size: 16px;
   line-height: 1.5;
   color: #333;
+  background-image: url(/home/awt/.config/wallpaper.png);
 }
 
 .tray {

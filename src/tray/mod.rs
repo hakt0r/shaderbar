@@ -1,3 +1,5 @@
+pub mod diff;
+use colored::Colorize;
 use glib::spawn_future_local;
 use gtk4::{
     gio::{self, ActionEntry, SimpleActionGroup},
@@ -11,7 +13,6 @@ use system_tray::{
     item::StatusNotifierItem,
     menu::{MenuItem, ToggleState, ToggleType},
 };
-pub mod diff;
 
 pub struct Tray {
     pub client: Option<Client>,
@@ -46,7 +47,7 @@ fn init_tray() -> Tray {
   ╚═════╝╚══════╝╚═╝╚══════╝╚═╝  ╚═══╝   ╚═╝
 */
 
-pub fn create_tray() {
+pub fn init_tray_icons() {
     spawn_future_local(async move {
         let pid: u32 = std::process::id();
         let process_name = "shaderbar";
@@ -66,7 +67,13 @@ pub fn create_tray() {
                     let icon_name = item.icon_name.as_ref().unwrap();
                     btn.set_icon_name(icon_name.as_str());
                     widget.append(&btn);
-                    eprintln!("Adding tray item: {}\n{:?}", id, item);
+                    eprintln!(
+                        "[{}]: {}({},{})",
+                        "tray".green(),
+                        "add_item".yellow(),
+                        id,
+                        item.id
+                    );
                     items.insert(
                         id_clone,
                         TrayItem {
