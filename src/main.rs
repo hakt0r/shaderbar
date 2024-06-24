@@ -1,36 +1,19 @@
 use crate::sensors::Sensors;
 use crate::state::state;
 use crate::tray::create_tray;
+use config::config;
 use gl::*;
 use gtk4::{glib, prelude::*};
 use gtk4_layer_shell::LayerShell;
 use std::{borrow::BorrowMut, ptr, time::Duration};
 use utils::global;
+
+mod config;
 mod gl;
 mod sensors;
 mod state;
 mod tray;
-
-mod utils {
-    macro_rules! global {
-        ($name:ident, $type:ty, $default:expr) => {
-            pub fn $name() -> &'static mut $type {
-                static mut VALUE: Option<$type> = None;
-                unsafe { VALUE.get_or_insert_with(|| $default).borrow_mut() }
-            }
-        };
-    }
-    macro_rules! global_init {
-        ($name:ident, $type:ty, $initializer:expr) => {
-            pub fn $name() -> &'static mut $type {
-                static mut VALUE: Option<$type> = None;
-                unsafe { VALUE.get_or_insert_with($initializer) }
-            }
-        };
-    }
-    pub(crate) use global;
-    pub(crate) use global_init;
-}
+mod utils;
 
 global!(
     application,
@@ -51,6 +34,8 @@ global!(sensors, Sensors, Sensors::new());
 #[tokio::main]
 async fn main() -> glib::ExitCode {
     eprintln!("Starting shaderbar");
+    _ = config().await;
+
     let library = unsafe { libloading::os::unix::Library::new("libepoxy.so.0") }.unwrap();
 
     epoxy::load_with(|name| {
@@ -61,22 +46,9 @@ async fn main() -> glib::ExitCode {
 
     state();
     sensors().read();
-
-    glib::spawn_future_local(async move {
-        read_sensors().await;
-    });
-
-    glib::spawn_future_local(async move {
-        read_sensors_lowfreq().await;
-    });
-
-    glib::spawn_future_local(async move {
-        render_timer().await;
-    });
-
-    glib::spawn_future_local(async move {
-        create_tray().await;
-    });
+    read_sensors();
+    read_sensors_lowfreq();
+    render_timer();
 
     let application = application();
 
@@ -89,6 +61,7 @@ async fn main() -> glib::ExitCode {
             gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
         );
 
+        create_tray();
         build_ui(app);
     });
 
@@ -144,26 +117,32 @@ fn build_ui(_: &gtk4::Application) {
     ╚═╝   ╚═╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝
 */
 
-async fn render_timer() {
-    readyness().await;
-    loop {
-        glib::timeout_future(Duration::from_millis(1000 / 30)).await;
-        widget().queue_render();
-    }
+fn render_timer() {
+    glib::spawn_future_local(async move {
+        readyness().await;
+        loop {
+            glib::timeout_future(Duration::from_millis(1000 / 30)).await;
+            widget().queue_render();
+        }
+    });
 }
 
-async fn read_sensors() {
-    loop {
-        sensors().read();
-        glib::timeout_future(Duration::from_millis(1000 / 30)).await;
-    }
+fn read_sensors() {
+    glib::spawn_future_local(async move {
+        loop {
+            sensors().read();
+            glib::timeout_future(Duration::from_millis(1000 / 30)).await;
+        }
+    });
 }
 
-async fn read_sensors_lowfreq() {
-    loop {
-        glib::timeout_future(Duration::from_secs(1)).await;
-        sensors().read_lowfreq();
-    }
+fn read_sensors_lowfreq() {
+    glib::spawn_future_local(async move {
+        loop {
+            glib::timeout_future(Duration::from_secs(1)).await;
+            sensors().read_lowfreq();
+        }
+    });
 }
 
 async fn readyness() {
@@ -197,13 +176,23 @@ fn init_wallpaper() {
         gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
 
+    let display_manager = gtk4::gdk::DisplayManager::get();
+    display_manager.connect_display_opened(|_, _| diff_wallpaper_windows());
     let screen = gtk4::gdk::Display::default().unwrap();
     screen.connect_seat_added(|_, _| diff_wallpaper_windows());
     screen.connect_seat_removed(|_, _| diff_wallpaper_windows());
+    screen.connect_setting_changed(|_, _| diff_wallpaper_windows());
+    let monitors = screen.monitors();
+    monitors.connect("items-changed", true, |_| {
+        diff_wallpaper_windows();
+        None
+    });
     diff_wallpaper_windows();
 }
 
 fn diff_wallpaper_windows() {
+    eprintln!("\x1b[31mDiffing wallpaper windows\x1b[0m");
+
     let screen = gtk4::gdk::Display::default().unwrap();
     let monitor = screen.monitors();
     let windows = wallpaper_windows();
@@ -217,7 +206,7 @@ fn diff_wallpaper_windows() {
         }
     }
 
-    let mut windows = wallpaper_windows();
+    let windows = wallpaper_windows();
 
     for (m, w) in &windows.clone() {
         let found = monitor
@@ -242,7 +231,7 @@ fn create_wallpaper_for_monitor(monitor: &Monitor) {
     window.set_title(Some(
         format!("{} - wallpaper", env!("CARGO_PKG_NAME")).as_str(),
     ));
-    eprintln!("wallpaper: {}x{}", width, height);
+
     window.set_monitor(&monitor);
     window.set_decorated(false);
 

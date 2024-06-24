@@ -1,0 +1,8 @@
+{
+  "shaders": [
+      {
+          "name": "default",
+          "path": "/path/to/your/shader.glsl"
+      }
+  ]
+}

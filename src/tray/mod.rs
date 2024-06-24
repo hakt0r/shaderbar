@@ -25,6 +25,7 @@ pub struct TrayItem {
 }
 
 crate::utils::global_init!(tray, Tray, init_tray);
+
 fn init_tray() -> Tray {
     return Tray {
         client: None,
@@ -36,7 +37,16 @@ fn init_tray() -> Tray {
     };
 }
 
-pub async fn create_tray() {
+/*
+  ██████╗██╗     ██╗███████╗███╗   ██╗████████╗
+ ██╔════╝██║     ██║██╔════╝████╗  ██║╚══██╔══╝
+ ██║     ██║     ██║█████╗  ██╔██╗ ██║   ██║
+ ██║     ██║     ██║██╔══╝  ██║╚██╗██║   ██║
+ ╚██████╗███████╗██║███████╗██║ ╚████║   ██║
+  ╚═════╝╚══════╝╚═╝╚══════╝╚═╝  ╚═══╝   ╚═╝
+*/
+
+pub fn create_tray() {
     spawn_future_local(async move {
         let pid: u32 = std::process::id();
         let process_name = "shaderbar";
