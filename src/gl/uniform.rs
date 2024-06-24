@@ -135,7 +135,10 @@ pub fn update_uniforms() {
 
     encode_text(
         &mut map.text,
-        &format!("{:_>216}{:02}:{:02}:{:02}", "", s.hour, s.minute, s.second),
+        &format!(
+            "{:_>216}{:02}:{:02}:{:02}",
+            s.window, s.hour, s.minute, s.second
+        ),
     );
 
     #[inline]

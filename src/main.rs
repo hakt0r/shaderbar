@@ -2,7 +2,7 @@ use crate::sensors::Sensors;
 use crate::state::state;
 use crate::tray::create_tray;
 use gl::*;
-use gtk4::{glib, prelude::*};
+use gtk4::{glib, prelude::*, Picture};
 use gtk4_layer_shell::LayerShell;
 use std::{borrow::BorrowMut, ptr, time::Duration};
 use utils::global;
@@ -130,8 +130,19 @@ fn build_ui(_: &gtk4::Application) {
 
     window.present();
 
+    build_wallpaper();
+
     (*is_ready()).replace(true);
 }
+
+/*
+ ████████╗██╗███╗   ███╗███████╗██████╗ ███████╗
+ ╚══██╔══╝██║████╗ ████║██╔════╝██╔══██╗██╔════╝
+    ██║   ██║██╔████╔██║█████╗  ██████╔╝███████╗
+    ██║   ██║██║╚██╔╝██║██╔══╝  ██╔══██╗╚════██║
+    ██║   ██║██║ ╚═╝ ██║███████╗██║  ██║███████║
+    ╚═╝   ╚═╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝
+*/
 
 async fn render_timer() {
     readyness().await;
@@ -162,3 +173,141 @@ async fn readyness() {
 }
 
 pub const ERR_CHANNEL_SEND: &str = "Failed to send message to channel";
+
+/*
+ ██╗    ██╗ █████╗ ██╗     ██╗     ██████╗  █████╗ ██████╗ ███████╗██████╗
+ ██║    ██║██╔══██╗██║     ██║     ██╔══██╗██╔══██╗██╔══██╗██╔════╝██╔══██╗
+ ██║ █╗ ██║███████║██║     ██║     ██████╔╝███████║██████╔╝█████╗  ██████╔╝
+ ██║███╗██║██╔══██║██║     ██║     ██╔═══╝ ██╔══██║██╔═══╝ ██╔══╝  ██╔══██╗
+ ╚███╔███╔╝██║  ██║███████╗███████╗██║     ██║  ██║██║     ███████╗██║  ██║
+  ╚══╝╚══╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝     ╚═╝  ╚═╝╚═╝     ╚══════╝╚═╝  ╚═╝
+*/
+
+global!(wallpaper_windows, Vec<gtk4::Window>, Vec::new());
+
+fn build_wallpaper() {
+    let provider = gtk4::CssProvider::new();
+    provider.load_from_path(std::path::Path::new("src/wallpaper.css"));
+    gtk4::style_context_add_provider_for_display(
+        &gtk4::gdk::Display::default().expect("Could not connect to a display."),
+        &provider,
+        gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
+    );
+
+    let screen = gtk4::gdk::Display::default().unwrap();
+    let monitor = screen.monitors();
+
+    for m in &monitor {
+        let monitor = m.unwrap().downcast::<gtk4::gdk::Monitor>().unwrap();
+        let workarea = monitor.geometry();
+        let width = workarea.width();
+        let height = workarea.height();
+
+        let window = gtk4::Window::new();
+
+        window.set_monitor(&monitor);
+        window.set_title(Some(
+            format!("{} - wallpaper", env!("CARGO_PKG_NAME")).as_str(),
+        ));
+        window.set_decorated(false);
+
+        window.init_layer_shell();
+        window.set_layer(gtk4_layer_shell::Layer::Background);
+        window.set_namespace(env!("CARGO_PKG_NAME"));
+
+        window.auto_exclusive_zone_enable();
+        window.set_width_request(width);
+        window.set_height_request(height);
+
+        window.set_margin(gtk4_layer_shell::Edge::Top, 0);
+        window.set_margin(gtk4_layer_shell::Edge::Right, 0);
+        window.set_margin(gtk4_layer_shell::Edge::Bottom, 0);
+        window.set_margin(gtk4_layer_shell::Edge::Left, 0);
+
+        window.set_anchor(gtk4_layer_shell::Edge::Top, true);
+        window.set_anchor(gtk4_layer_shell::Edge::Right, true);
+        window.set_anchor(gtk4_layer_shell::Edge::Left, true);
+        window.set_anchor(gtk4_layer_shell::Edge::Bottom, true);
+
+        window.add_css_class("wallpaper");
+
+        window.show();
+        window.present();
+
+        wallpaper_windows().push(window);
+    }
+}
+
+/*
+      ██╗██╗   ██╗███╗   ██╗██╗  ██╗
+      ██║██║   ██║████╗  ██║██║ ██╔╝
+      ██║██║   ██║██╔██╗ ██║█████╔╝
+ ██   ██║██║   ██║██║╚██╗██║██╔═██╗
+ ╚█████╔╝╚██████╔╝██║ ╚████║██║  ██╗
+  ╚════╝  ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═╝
+*/
+
+/* let screen = gdk::Screen::default().unwrap();
+let monitor = screen.primary_monitor().unwrap();
+let workarea = monitor.workarea();
+let (x, y) = workarea.origin();
+let (width, height) = workarea.size();
+
+window.move_(x, y);
+window.resize(width, height);
+
+window.connect_destroy(|window| {
+    let mut windows = wallpaper_windows();
+    windows.retain(|w| w != window);
+});
+
+window.connect_screen_changed(|window, _| {
+    let screen = gdk::Screen::default().unwrap();
+    let monitor = screen.primary_monitor().unwrap();
+    let workarea = monitor.workarea();
+    let (x, y) = workarea.origin();
+    let (width, height) = workarea.size();
+
+    window.move_(x, y);
+    window.resize(width, height);
+});
+
+window.connect_configure_event(|window, _| {
+    let screen = gdk::Screen::default().unwrap();
+    let monitor = screen.primary_monitor().unwrap();
+    let workarea = monitor.workarea();
+    let (x, y) = workarea.origin();
+    let (width, height) = workarea.size();
+
+    window.move_(x, y);
+    window.resize(width, height);
+    gtk4::Inhibit(false)
+});
+
+window.connect_draw(|window, context| {
+    let screen = gdk::Screen::default().unwrap();
+    let monitor = screen.primary_monitor().unwrap();
+    let workarea = monitor.workarea();
+    let (x, y) = workarea.origin();
+    let (width, height) = workarea.size();
+
+    context.set_source_rgb(0.0, 0.0, 0.0);
+    context.rectangle(x as f64, y as f64, width as f64, height as f64);
+    context.fill();
+
+    gtk4::Inhibit(false)
+});
+
+window.connect_draw(|window, context| {
+    let screen = gdk::Screen::default().unwrap();
+    let monitor = screen.primary_monitor().unwrap();
+    let workarea = monitor.workarea();
+    let (x, y) = workarea.origin();
+    let (width, height) = workarea.size();
+
+    context.set_source_rgb(0.0, 0.0, 0.0);
+    context.rectangle(x as f64, y as f64, width as f64, height as f64);
+    context.fill();
+
+    gtk4::Inhibit(false)
+}); */

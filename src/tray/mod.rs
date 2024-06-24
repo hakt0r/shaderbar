@@ -66,7 +66,7 @@ pub async fn create_tray() {
                     );
                 }
                 system_tray::client::Event::Update(id, item) => {
-                    eprintln!("Updating tray item: {}\n{:?}", id, item);
+                    //eprintln!("Updating tray item: {}\n{:?}", id, item);
                     match item {
                         system_tray::client::UpdateEvent::Menu(menu) => {
                             let status_notifier_item = items.get(&id);

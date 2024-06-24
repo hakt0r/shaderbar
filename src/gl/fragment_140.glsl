@@ -198,8 +198,8 @@ vec4 draw_text(vec4 O, vec2 U) {
 uint align_char(uint char) {
   // we cut out the non-printable characters
   // so we need to adjust the index
-  if(char > 94u)
-    return char - 33u - 94u;
+  if(char > 146u)
+    return char - 33u - 146u;
   return char - 33u;
 }
 

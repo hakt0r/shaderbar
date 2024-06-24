@@ -27,6 +27,7 @@ pub struct Sensors {
     pub hour: u8,
     pub minute: u8,
     pub second: u8,
+    pub window: String,
     pub cpu_count: u8,
     pub cpu_load: Vec<u8>,
     pub cpu_last_idle: Vec<u64>,
@@ -68,6 +69,7 @@ impl Sensors {
                 hour: 0,
                 minute: 0,
                 second: 0,
+                window: String::new(),
                 cpu_count: 0,
                 cpu_last_idle: vec![0u64; 0],
                 cpu_last_total: vec![0u64; 0],
@@ -105,6 +107,13 @@ impl Sensors {
     */
 
     pub fn read_lowfreq(&mut self) {
+        let window_script = "swaymsg -t get_tree | jq '.. | select(.type?) | select(.focused==true) | .window_properties.title '";
+        let window = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(window_script)
+            .output()
+            .unwrap();
+        self.window = String::from_utf8(window.stdout).unwrap();
         let cpu_fan = read_number_from_file_sync(&self.cpu_fan_path).unwrap();
         let gpu_fan = read_number_from_file_sync(&self.gpu_fan_path).unwrap();
         let cpu_temp = read_number_from_file_sync(&self.cpu_temp_path).unwrap();
