@@ -1366,9 +1366,11 @@ dependencies = [
  "gl_generator 0.14.0",
  "glutin",
  "glutin-winit",
+ "lazy_static",
  "memoffset 0.9.1",
  "raw-window-handle 0.5.2",
  "smallvec",
+ "takeable-option",
  "winit",
 ]
 
@@ -2942,6 +2944,12 @@ dependencies = [
  "tracing",
  "zbus",
 ]
+
+[[package]]
+name = "takeable-option"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36ae8932fcfea38b7d3883ae2ab357b0d57a02caaa18ebb4f5ece08beaec4aa0"
 
 [[package]]
 name = "target-lexicon"

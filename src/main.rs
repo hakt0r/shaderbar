@@ -50,6 +50,7 @@ global!(sensors, Sensors, Sensors::new());
 
 #[tokio::main]
 async fn main() -> glib::ExitCode {
+    eprintln!("Starting shaderbar");
     let library = unsafe { libloading::os::unix::Library::new("libepoxy.so.0") }.unwrap();
 
     epoxy::load_with(|name| {

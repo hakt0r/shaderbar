@@ -26,18 +26,22 @@ pub struct Renderer {
 impl Renderer {
     fn new(context: Rc<GliumContext>) -> Self {
         let vertex = read_shader("src/gl/vertex.glsl");
-        let fragment = read_shader("src/gl/fragment.glsl");
+        let fragment = read_shader("src/gl/fragment_140.glsl");
         let index = default_index_buffer(&context);
         let triangles = default_vertex_buffer(&context);
 
-        let program = program!(&context, 140 => { vertex: &vertex, fragment: &fragment })
-            .unwrap_or_else(|err| {
-                println!(
-                    "\x1b[31m\nFailed to create program:\n\x1b[0m \x1b[33m{}\x1b[0m",
-                    err
-                );
-                exit(1);
-            });
+        eprintln!("OpenGL version: {:?}", context.get_opengl_version());
+
+        let program = program!(&context,
+            140 => { vertex: &vertex, fragment: &fragment },
+        )
+        .unwrap_or_else(|err| {
+            println!(
+                "\x1b[31m\nFailed to create program:\n\x1b[0m \x1b[33m{}\x1b[0m",
+                err
+            );
+            exit(1);
+        });
 
         let buffer = initialize_uniforms(context.clone());
 

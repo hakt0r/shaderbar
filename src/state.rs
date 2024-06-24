@@ -46,12 +46,12 @@ pub fn state() -> &'static mut State {
     unsafe {
         NETWORK_INTERFACES = Some(map);
         TEMPERATURE = Some(Temperature {
-            cpu: "/sys/devices/platform/thinkpad_hwmon/hwmon/hwmon7/temp1_input".to_string(),
-            gpu: "/sys/devices/platform/thinkpad_hwmon/hwmon/hwmon7/temp2_input".to_string(),
+            cpu: "/sys/devices/platform/thinkpad_hwmon/hwmon/hwmon3/temp1_input".to_string(),
+            gpu: "/sys/devices/platform/thinkpad_hwmon/hwmon/hwmon3/temp2_input".to_string(),
         });
         FANS = Some(Fans {
-            cpu: "/sys/devices/platform/thinkpad_hwmon/hwmon/hwmon7/fan1_input".to_string(),
-            gpu: "/sys/devices/platform/thinkpad_hwmon/hwmon/hwmon7/fan2_input".to_string(),
+            cpu: "/sys/devices/platform/thinkpad_hwmon/hwmon/hwmon3/fan1_input".to_string(),
+            gpu: "/sys/devices/platform/thinkpad_hwmon/hwmon/hwmon3/fan2_input".to_string(),
         });
         STATE = Some(State {
             sensor_index: 0,
