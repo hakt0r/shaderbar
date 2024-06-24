@@ -34,7 +34,7 @@ global!(sensors, Sensors, Sensors::new());
 #[tokio::main]
 async fn main() -> glib::ExitCode {
     eprintln!("Starting shaderbar");
-    _ = config().await;
+    let config = config().await;
 
     let library = unsafe { libloading::os::unix::Library::new("libepoxy.so.0") }.unwrap();
 
@@ -50,11 +50,17 @@ async fn main() -> glib::ExitCode {
     read_sensors_lowfreq();
     render_timer();
 
-    let application = application();
+    let application: &mut gtk4::Application = application();
 
     application.connect_activate(move |app| {
         let provider = gtk4::CssProvider::new();
-        provider.load_from_path(std::path::Path::new("src/style.css"));
+        #[cfg(not(debug_assertions))]
+        {
+            let stylesheet_file = config.stylesheet_file.clone();
+            provider.load_from_path(&stylesheet_file);
+        }
+        #[cfg(debug_assertions)]
+        provider.load_from_path(std::path::Path::new("src/config/defaults.css"));
         gtk4::style_context_add_provider_for_display(
             &gtk4::gdk::Display::default().expect("Could not connect to a display."),
             &provider,
@@ -168,14 +174,6 @@ use std::collections::HashMap;
 global!(wallpaper_windows, HashMap<gtk4::gdk::Monitor, gtk4::Window>, HashMap::new());
 
 fn init_wallpaper() {
-    let provider = gtk4::CssProvider::new();
-    provider.load_from_path(std::path::Path::new("src/wallpaper.css"));
-    gtk4::style_context_add_provider_for_display(
-        &gtk4::gdk::Display::default().expect("Could not connect to a display."),
-        &provider,
-        gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
-    );
-
     let display_manager = gtk4::gdk::DisplayManager::get();
     display_manager.connect_display_opened(|_, _| diff_wallpaper_windows());
     let screen = gtk4::gdk::Display::default().unwrap();
