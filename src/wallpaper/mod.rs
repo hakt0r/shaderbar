@@ -1,4 +1,4 @@
-use crate::config::{config, Config};
+use crate::config::Config;
 use colored::Colorize;
 use gtk4::{gdk::Monitor, prelude::*};
 use gtk4_layer_shell::LayerShell;

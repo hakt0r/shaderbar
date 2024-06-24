@@ -144,6 +144,32 @@ fn add_menu_items(
     items: Vec<MenuItem>,
     action_group: &gio::SimpleActionGroup,
 ) -> gio::Menu {
+    let mut sections: Vec<Vec<MenuItem>> = Vec::new();
+    let mut section: Vec<MenuItem> = Vec::new();
+    for child in items {
+        let label = child.label.clone();
+        if label.is_none() {
+            sections.push(section.clone());
+            section.clear();
+        } else {
+            section.push(child);
+        }
+    }
+    for section in sections {
+        let section_menu =
+            add_section_menu_items(address, menu_path, gio::Menu::new(), section, action_group);
+        menu.append_section(None, &section_menu);
+    }
+    menu
+}
+
+fn add_section_menu_items(
+    address: &String,
+    menu_path: &String,
+    menu: gio::Menu,
+    items: Vec<MenuItem>,
+    action_group: &gio::SimpleActionGroup,
+) -> gio::Menu {
     for child in items {
         let MenuItem {
             id,
@@ -167,8 +193,9 @@ fn add_menu_items(
                 );
                 let item = gio::MenuItem::new(Some(&label), action);
                 if let Some(icon) = icon_name {
-                    if let Ok(icon) = gtk4::gio::Icon::for_string(&icon) {
-                        item.set_icon(&icon);
+                    if let Ok(gicon) = gtk4::gio::Icon::for_string(&icon) {
+                        eprintln!("[{}]: {}", "icon".green(), icon.yellow());
+                        item.set_icon(&gicon);
                     }
                 }
                 menu.append_item(&item);
@@ -182,8 +209,6 @@ fn add_menu_items(
                 );
                 menu.append_submenu(Some(&label), &item);
             }
-        } else {
-            eprintln!("---------------------");
         }
     }
     menu
