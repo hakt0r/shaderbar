@@ -2,7 +2,7 @@ use crate::sensors::Sensors;
 use crate::state::state;
 use crate::tray::create_tray;
 use gl::*;
-use gtk4::{glib, prelude::*, Picture};
+use gtk4::{glib, prelude::*};
 use gtk4_layer_shell::LayerShell;
 use std::{borrow::BorrowMut, ptr, time::Duration};
 use utils::global;
@@ -130,7 +130,7 @@ fn build_ui(_: &gtk4::Application) {
 
     window.present();
 
-    build_wallpaper();
+    init_wallpaper();
 
     (*is_ready()).replace(true);
 }
@@ -183,9 +183,12 @@ pub const ERR_CHANNEL_SEND: &str = "Failed to send message to channel";
   ╚══╝╚══╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝     ╚═╝  ╚═╝╚═╝     ╚══════╝╚═╝  ╚═╝
 */
 
-global!(wallpaper_windows, Vec<gtk4::Window>, Vec::new());
+use gtk4::gdk::Monitor;
+use std::collections::HashMap;
 
-fn build_wallpaper() {
+global!(wallpaper_windows, HashMap<gtk4::gdk::Monitor, gtk4::Window>, HashMap::new());
+
+fn init_wallpaper() {
     let provider = gtk4::CssProvider::new();
     provider.load_from_path(std::path::Path::new("src/wallpaper.css"));
     gtk4::style_context_add_provider_for_display(
@@ -195,47 +198,76 @@ fn build_wallpaper() {
     );
 
     let screen = gtk4::gdk::Display::default().unwrap();
+    screen.connect_seat_added(|_, _| diff_wallpaper_windows());
+    screen.connect_seat_removed(|_, _| diff_wallpaper_windows());
+    diff_wallpaper_windows();
+}
+
+fn diff_wallpaper_windows() {
+    let screen = gtk4::gdk::Display::default().unwrap();
     let monitor = screen.monitors();
+    let windows = wallpaper_windows();
 
-    for m in &monitor {
-        let monitor = m.unwrap().downcast::<gtk4::gdk::Monitor>().unwrap();
-        let workarea = monitor.geometry();
-        let width = workarea.width();
-        let height = workarea.height();
-
-        let window = gtk4::Window::new();
-
-        window.set_monitor(&monitor);
-        window.set_title(Some(
-            format!("{} - wallpaper", env!("CARGO_PKG_NAME")).as_str(),
-        ));
-        window.set_decorated(false);
-
-        window.init_layer_shell();
-        window.set_layer(gtk4_layer_shell::Layer::Background);
-        window.set_namespace(env!("CARGO_PKG_NAME"));
-
-        window.auto_exclusive_zone_enable();
-        window.set_width_request(width);
-        window.set_height_request(height);
-
-        window.set_margin(gtk4_layer_shell::Edge::Top, 0);
-        window.set_margin(gtk4_layer_shell::Edge::Right, 0);
-        window.set_margin(gtk4_layer_shell::Edge::Bottom, 0);
-        window.set_margin(gtk4_layer_shell::Edge::Left, 0);
-
-        window.set_anchor(gtk4_layer_shell::Edge::Top, true);
-        window.set_anchor(gtk4_layer_shell::Edge::Right, true);
-        window.set_anchor(gtk4_layer_shell::Edge::Left, true);
-        window.set_anchor(gtk4_layer_shell::Edge::Bottom, true);
-
-        window.add_css_class("wallpaper");
-
-        window.show();
-        window.present();
-
-        wallpaper_windows().push(window);
+    for m in &monitor.clone() {
+        let monitor = m.unwrap().downcast::<Monitor>().unwrap();
+        let window = windows.get(&monitor);
+        let found = window.is_some();
+        if !found {
+            create_wallpaper_for_monitor(&monitor);
+        }
     }
+
+    let mut windows = wallpaper_windows();
+
+    for (m, w) in &windows.clone() {
+        let found = monitor
+            .clone()
+            .iter::<Monitor>()
+            .any(|existing_monitor| existing_monitor.unwrap().downcast::<Monitor>().unwrap() == *m);
+        if !found {
+            w.destroy();
+            windows.remove(m);
+        }
+    }
+}
+
+fn create_wallpaper_for_monitor(monitor: &Monitor) {
+    let workarea = monitor.geometry();
+    let width = workarea.width();
+    let height = workarea.height();
+
+    let window = gtk4::Window::new();
+
+    window.init_layer_shell();
+    window.set_title(Some(
+        format!("{} - wallpaper", env!("CARGO_PKG_NAME")).as_str(),
+    ));
+    eprintln!("wallpaper: {}x{}", width, height);
+    window.set_monitor(&monitor);
+    window.set_decorated(false);
+
+    window.set_layer(gtk4_layer_shell::Layer::Background);
+    window.set_namespace(env!("CARGO_PKG_NAME"));
+
+    window.set_width_request(width);
+    window.set_height_request(height);
+
+    window.set_margin(gtk4_layer_shell::Edge::Top, 0);
+    window.set_margin(gtk4_layer_shell::Edge::Right, 0);
+    window.set_margin(gtk4_layer_shell::Edge::Bottom, 0);
+    window.set_margin(gtk4_layer_shell::Edge::Left, 0);
+
+    window.set_anchor(gtk4_layer_shell::Edge::Top, true);
+    window.set_anchor(gtk4_layer_shell::Edge::Right, true);
+    window.set_anchor(gtk4_layer_shell::Edge::Left, true);
+    window.set_anchor(gtk4_layer_shell::Edge::Bottom, true);
+
+    window.add_css_class("wallpaper");
+
+    window.show();
+    window.present();
+
+    wallpaper_windows().insert(monitor.clone(), window);
 }
 
 /*
