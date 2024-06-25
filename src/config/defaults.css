@@ -1,7 +1,7 @@
 window {
   background: transparent;
-  font-family: 'Roboto', sans-serif;
-  font-size: 16px;
+  font-family: 'SauceCodePro Nerd Font', monospace;
+  font-size: 10px;
   line-height: 1.5;
   color: #333;
   background-image: url(/home/awt/.config/wallpaper.png);
@@ -28,4 +28,24 @@ window {
 
 .tray-disabled {
   opacity: 0.5;
+}
+
+.user {
+  padding-left: 10px;
+  color: #0ff;
+}
+
+.at {
+  color: #f0f;
+}
+
+.hostname {
+  color: #0f0;
+}
+
+.date-time {
+  margin-top: 2px;
+  font: 700 9px 'SauceCodePro Nerd Font', monospace;
+  padding-left: 10px;
+  color: gray;
 }

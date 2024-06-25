@@ -12,7 +12,6 @@ pub const HISTORY_SIZE: usize = 256;
 #[derive(Clone, Copy)]
 pub struct SensorValues {
     pub width: u32,
-    pub time: u32,
     pub gauge_count: u32,
     pub gauge_value: [u32; 6],
     pub gauge_color: [u32; 6],
@@ -20,13 +19,11 @@ pub struct SensorValues {
     pub load_count: u32,
     pub load_color: [u32; 24],
     pub load: [u32; 2048],
-    pub text: [u32; 256],
 }
 
 implement_uniform_block!(
     SensorValues,
     width,
-    time,
     gauge_count,
     gauge_value,
     gauge_color,
@@ -34,7 +31,6 @@ implement_uniform_block!(
     load_count,
     load_color,
     load,
-    text
 );
 
 #[inline]
@@ -79,39 +75,9 @@ pub fn initialize_uniforms(context: Rc<Context>) -> UniformBuffer<SensorValues> 
         map.gauge_count = 5;
         map.gauge_value = [0u32; 6];
         map.gauge_color = [RED, RED, BLUE, YELLOW, ORANGE, YELLOW];
-        // 60 seconds with milliseconds
-        map.time = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u32;
-        // format current time as string
-        map.text = [64u32; 256];
-        encode_text(
-            &mut map.text,
-            &format!("{:02}:{:02}:{:02}", s.hour, s.minute, s.second),
-        );
     }
 
     return buffer;
-}
-
-pub fn encode_text(text: &mut [u32; 256], string: &str) {
-    #[inline]
-    fn byte_or_0(bytes: &[u8], index: usize) -> u8 {
-        if index >= bytes.len() {
-            return 0;
-        }
-        return bytes[index];
-    }
-    let bytes = string.as_bytes();
-    for i in 0..64 {
-        let o = i * 4;
-        let b1 = byte_or_0(bytes, o);
-        let b2 = byte_or_0(bytes, o + 1);
-        let b3 = byte_or_0(bytes, o + 2);
-        let b4 = byte_or_0(bytes, o + 3);
-        text[i] = u32e4(b1, b2, b3, b4);
-    }
 }
 
 pub fn update_uniforms() {
@@ -127,19 +93,6 @@ pub fn update_uniforms() {
     let ptr: usize = frame as usize % HISTORY_SIZE;
 
     map.load_ptr = ptr as u32;
-
-    map.time = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u32;
-
-    encode_text(
-        &mut map.text,
-        &format!(
-            "{:_>216}{:02}:{:02}:{:02}",
-            s.window, s.hour, s.minute, s.second
-        ),
-    );
 
     #[inline]
     fn write_pixel(map: &mut Mapping<SensorValues>, y: usize, x: usize, value: u8) {

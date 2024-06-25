@@ -26,7 +26,6 @@ void gague(inout vec4 O, vec2 uv, vec2 center, int radius, int line_width, vec3 
 
 uniform sensors {
   uint width;
-  uint time;
   uint gauge_count;
   uint gauge_value[6];
   uint gauge_color[6];
@@ -34,7 +33,6 @@ uniform sensors {
   uint load_count;
   uint load_color[24];
   uint load[2048];
-  uint text[256];
 };
 
 uniform sampler2D font;
@@ -151,59 +149,6 @@ vec4 bar_history_pixel(inout vec4 O, vec2 U, uint bar_index) {
 }
 
 /*
- ████████╗███████╗██╗  ██╗████████╗
- ╚══██╔══╝██╔════╝╚██╗██╔╝╚══██╔══╝
-    ██║   █████╗   ╚███╔╝    ██║
-    ██║   ██╔══╝   ██╔██╗    ██║
-    ██║   ███████╗██╔╝ ██╗   ██║
-    ╚═╝   ╚══════╝╚═╝  ╚═╝   ╚═╝
-*/
-
-uint text_start = 263;
-float char_width = 7.0;
-float char_height = 16.0;
-
-ivec2 bar_size = ivec2(1920, 24);
-ivec2 bar_padding = ivec2(0, (bar_size.y - char_height) / 2);
-
-//float(char_width);
-//float(char_height);
-
-vec4 green = vec4(0., .2, 0., .1);
-
-uint chars_per_row = 36u;
-
-vec4 draw_text(vec4 O, vec2 U) {
-
-  ivec2 Ui = ivec2(U);
-  ivec3 time = u32d3(time);
-  bool within_top_boundary = Ui.y < bar_size.y - bar_padding.y;
-  bool within_bottom_boundary = Ui.y > bar_padding.y;
-  bool is_text = U.x > text_start && U.x < width - 85. && within_top_boundary && within_bottom_boundary;
-  if(!is_text)
-    return O;
-
-  uint char_index = uint(floor((U.x - text_start) / char_width));
-  uint page = uint(floor(char_index / 4));
-  uint byte = uint(char_index % 4);
-  uint texture_index = align_char(u32d4(text[page])[byte]);
-  uint local_x = Ui.x - text_start - char_index * uint(char_width);
-  uint local_y = Ui.y - bar_padding.y;
-  uint char_x = int(local_x + char_width * (texture_index % chars_per_row));
-  uint char_y = int(local_y + char_height * floor(texture_index / chars_per_row));
-  vec4 color = texelFetch(font, ivec2(char_x, char_y), 0);
-  return mix(O, color, color.a);
-}
-
-uint align_char(uint char) {
-  // we cut out the non-printable characters
-  // so we need to adjust the index
-  if(char > 146u)
-    return char - 33u - 146u;
-  return char - 33u;
-}
-
-/*
  ███╗   ███╗ █████╗ ██╗███╗   ██╗
  ████╗ ████║██╔══██╗██║████╗  ██║
  ██╔████╔██║███████║██║██╔██╗ ██║
@@ -217,7 +162,6 @@ void main() {
   vec4 O = vec4(0.0, 0.0, 0.0, 0.0);
   O = bar(O, U);
   O = gague(O, U);
-  O = draw_text(O, U);
   f_color = O;
   return;
 }

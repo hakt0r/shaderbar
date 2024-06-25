@@ -31,6 +31,14 @@ global!(
     gtk4::ApplicationWindow::new(application())
 );
 global!(widget, GliumGLArea, GliumGLArea::default());
+global!(
+    widgets,
+    gtk4::Grid,
+    gtk4::Grid::builder()
+        .row_spacing(0)
+        .column_spacing(0)
+        .build()
+);
 global!(is_ready, Option<bool>, Some(false));
 global!(sensors, Sensors, Sensors::new());
 
@@ -92,11 +100,53 @@ fn init_ui(_: &gtk4::Application) {
     widget.set_height_request(24);
     container.put(widget, 0f64, 0f64);
 
-    container.put(&tray::tray().widget, 16f64, 0f64);
-
+    let widgets = widgets();
+    widgets.attach(&tray::tray().widget, 0, 0, 1, 1);
+    container.put(widgets, 16f64, 0f64);
+    base_widgets();
     window.present();
 
     (*is_ready()).replace(true);
+}
+
+fn base_widgets() {
+    let widgets = widgets();
+
+    date_time_widget();
+
+    let user = gtk4::Label::new(None);
+    let user_name = std::env::var("USER").unwrap_or("swayfx".to_string());
+    user.add_css_class("user");
+    user.set_text(user_name.as_str());
+
+    let at = gtk4::Label::new(None);
+    at.add_css_class("at");
+    at.set_text("@");
+
+    let hostname = gtk4::Label::new(None);
+    hostname.add_css_class("hostname");
+    hostname.set_text(gethostname::gethostname().to_str().unwrap());
+
+    widgets.attach(&user, 1, 0, 1, 1);
+    widgets.attach(&at, 2, 0, 1, 1);
+    widgets.attach(&hostname, 3, 0, 1, 1);
+}
+
+global!(date_time, gtk4::Label, gtk4::Label::new(None));
+
+fn date_time_widget() {
+    spawn_future_local(async move {
+        let widgets = widgets();
+        let date_time = date_time();
+        date_time.set_text("00:00:00.00 1970/01/01");
+        date_time.add_css_class("date-time");
+        widgets.attach(date_time, 4, 0, 1, 1);
+        loop {
+            glib::timeout_future(Duration::from_millis(1000 / 30)).await;
+            let now = chrono::Local::now();
+            date_time.set_text(now.format("%T %Y/%m/%d").to_string().as_str());
+        }
+    });
 }
 
 fn post_init(config: &config::Config) {
