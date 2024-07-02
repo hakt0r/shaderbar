@@ -1,15 +1,22 @@
-window {
+label {
+  margin: 0;
+  padding: 0;
   background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+window {
   font-family: 'SauceCodePro Nerd Font', monospace;
   font-size: 10px;
-  line-height: 1.5;
+  line-height: 1;
   color: #333;
   background-image: url(/home/awt/.config/wallpaper.png);
 }
 
-.tray {
+.tray>button {
   margin: 0;
-  padding: 4px;
+  padding: 0;
   border: none;
   border-radius: 0;
   background: transparent;
@@ -19,15 +26,13 @@ window {
   background: #00000033;
 }
 
-.tray>* {
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: transparent;
-}
-
 .tray-disabled {
   opacity: 0.5;
+}
+
+.window-name {
+  padding-left: 10px;
+  color: violet;
 }
 
 .user {
@@ -40,12 +45,40 @@ window {
 }
 
 .hostname {
+
   color: #0f0;
 }
 
 .date-time {
-  margin-top: 2px;
-  font: 700 9px 'SauceCodePro Nerd Font', monospace;
   padding-left: 10px;
   color: gray;
+}
+
+.tray-menu-item,
+.tray-menu-item.background {
+  background: transparent;
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tray-menu-item {
+  color: #fff;
+  padding: 5px 10px;
+}
+
+.tray-menu-item:hover {
+  background: #00000033;
+}
+
+.disabled {
+  opacity: 0.5;
+}
+
+.section {
+  margin-top: 10px;
+}
+
+.section.first {
+  margin-top: 0;
 }

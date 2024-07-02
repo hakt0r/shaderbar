@@ -1,3 +1,11 @@
+mod config;
+mod gl;
+mod sensors;
+mod state;
+mod tray;
+mod utils;
+mod wallpaper;
+
 use crate::sensors::Sensors;
 use crate::state::state;
 use crate::tray::init_tray_icons;
@@ -7,16 +15,8 @@ use gl::*;
 use glib::spawn_future_local;
 use gtk4::{glib, prelude::*};
 use gtk4_layer_shell::LayerShell;
-use std::{borrow::BorrowMut, ptr, time::Duration};
+use std::{ptr, time::Duration};
 use utils::global;
-
-mod config;
-mod gl;
-mod sensors;
-mod state;
-mod tray;
-mod utils;
-mod wallpaper;
 
 global!(
     application,
@@ -110,37 +110,93 @@ fn init_ui(_: &gtk4::Application) {
 }
 
 fn base_widgets() {
-    let widgets = widgets();
-
     date_time_widget();
+    user_host_widget();
+    window_name_widget();
+}
 
-    let user = gtk4::Label::new(None);
-    let user_name = std::env::var("USER").unwrap_or("swayfx".to_string());
-    user.add_css_class("user");
-    user.set_text(user_name.as_str());
+global!(
+    user_host,
+    (gtk4::Box, [gtk4::Label; 3]),
+    (
+        gtk4::Box::new(gtk4::Orientation::Horizontal, 0),
+        [
+            gtk4::Label::new(None),
+            gtk4::Label::new(None),
+            gtk4::Label::new(None)
+        ]
+    )
+);
 
-    let at = gtk4::Label::new(None);
-    at.add_css_class("at");
-    at.set_text("@");
+fn user_host_widget() {
+    fn update_user_host() {
+        let (_, [user, _, host]) = user_host();
+        user.set_text(whoami::username().as_str());
+        host.set_text(
+            whoami::fallible::hostname()
+                .unwrap_or("shaderbar".to_string())
+                .as_str(),
+        );
+    }
+    spawn_future_local(async move {
+        let widgets = widgets();
+        let (container, [user, at, host]) = user_host();
+        container.add_css_class("user-host");
+        user.add_css_class("user");
+        at.add_css_class("at");
+        host.add_css_class("hostname");
+        at.set_text("@");
+        update_user_host();
+        widgets.attach(container, 1, 0, 1, 1);
+        loop {
+            update_user_host();
+            glib::timeout_future(Duration::from_millis(1000)).await;
+        }
+    });
+}
 
-    let hostname = gtk4::Label::new(None);
-    hostname.add_css_class("hostname");
-    hostname.set_text(gethostname::gethostname().to_str().unwrap());
-
-    widgets.attach(&user, 1, 0, 1, 1);
-    widgets.attach(&at, 2, 0, 1, 1);
-    widgets.attach(&hostname, 3, 0, 1, 1);
+global!(window_name, gtk4::Label, gtk4::Label::new(None));
+fn window_name_widget() {
+    spawn_future_local(async move {
+        let widgets = widgets();
+        let window_name = window_name();
+        window_name.set_text("swayfx");
+        window_name.add_css_class("window-name");
+        widgets.attach(window_name, 4, 0, 1, 1);
+        loop {
+            {
+                let window_script = "swaymsg -t get_tree | jq -r '.. | select(.type?) | select(.focused==true) | .window_properties.title '";
+                let window = std::process::Command::new("sh")
+                    .arg("-c")
+                    .arg(window_script)
+                    .output()
+                    .unwrap();
+                let utf8 = window.stdout;
+                let name = String::from_utf8(utf8)
+                    .to_owned()
+                    .unwrap()
+                    .trim()
+                    .to_string();
+                let name = match name.as_str() {
+                    "null" => "",
+                    "" => "",
+                    _ => name.as_str(),
+                };
+                window_name.set_text(name);
+            }
+            glib::timeout_future(Duration::from_millis(1000 / 3)).await;
+        }
+    });
 }
 
 global!(date_time, gtk4::Label, gtk4::Label::new(None));
-
 fn date_time_widget() {
     spawn_future_local(async move {
         let widgets = widgets();
         let date_time = date_time();
         date_time.set_text("00:00:00.00 1970/01/01");
         date_time.add_css_class("date-time");
-        widgets.attach(date_time, 4, 0, 1, 1);
+        widgets.attach(date_time, 3, 0, 1, 1);
         loop {
             glib::timeout_future(Duration::from_millis(1000 / 30)).await;
             let now = chrono::Local::now();
@@ -150,7 +206,7 @@ fn date_time_widget() {
 }
 
 fn post_init(config: &config::Config) {
-    init_stylesheet();
+    spawn_future_local(init_stylesheet());
     init_wallpaper(config);
     init_tray_icons();
 }
@@ -165,13 +221,14 @@ fn load_epoxy() {
     });
 }
 
-fn init_stylesheet() {
+async fn init_stylesheet() {
     let provider = gtk4::CssProvider::new();
     #[cfg(not(debug_assertions))]
     {
-        let stylesheet_file = config().stylesheet_file.clone();
+        // PROD // PROD // PROD // PROD // PROD // PROD // PROD // PROD // PROD // PROD // PROD
+        let stylesheet_file = config().await.stylesheet_file.clone();
         provider.load_from_path(&stylesheet_file);
-    }
+    } // PROD // PROD // PROD // PROD // PROD // PROD // PROD // PROD // PROD // PROD // PROD
     #[cfg(debug_assertions)]
     provider.load_from_path(std::path::Path::new("src/config/defaults.css"));
     gtk4::style_context_add_provider_for_display(

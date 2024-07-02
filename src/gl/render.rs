@@ -3,14 +3,10 @@ use crate::gl::tools::read_shader;
 use crate::gl::uniform::{default_index_buffer, default_vertex_buffer, SensorValues, Vertex};
 use glib::Propagation;
 use glium::backend::Context as GliumContext;
-use glium::{
-    program, texture::*, uniform, uniforms::UniformBuffer, Frame, IndexBuffer, Surface,
-    VertexBuffer,
-};
+use glium::{program, uniform, uniforms::UniformBuffer, Frame, IndexBuffer, Surface, VertexBuffer};
 use gtk4::{
     gdk::GLContext, prelude::*, subclass::gl_area::GLAreaImpl, subclass::prelude::*, GLArea,
 };
-use std::io::Cursor;
 use std::{cell::RefCell, process::exit, rc::Rc};
 
 pub struct Renderer {
@@ -20,7 +16,6 @@ pub struct Renderer {
     pub buffer: UniformBuffer<SensorValues>,
     pub program: glium::Program,
     pub frame: u64,
-    pub font: Texture2d,
 }
 
 impl Renderer {
@@ -45,18 +40,6 @@ impl Renderer {
 
         let buffer = initialize_uniforms(context.clone());
 
-        let image = image::load(
-            Cursor::new(&include_bytes!("../font.png")[..]),
-            image::ImageFormat::Png,
-        )
-        .unwrap()
-        .to_rgba8();
-
-        let dimensions = image.dimensions();
-        eprintln!("Dimensions: {:?}", dimensions);
-        let image = RawImage2d::from_raw_rgba_reversed(&image.into_raw(), dimensions);
-        let texture = Texture2d::new(&context, image).unwrap();
-
         Renderer {
             buffer,
             context,
@@ -64,7 +47,6 @@ impl Renderer {
             index,
             program,
             triangles,
-            font: texture,
         }
     }
 
@@ -75,7 +57,6 @@ impl Renderer {
             let mut map = self.buffer.map();
             map.width = dimensions.0;
         }
-        unsafe { self.context.as_ref().rebind_textures() }
         {
             frame
                 .draw(
@@ -84,7 +65,6 @@ impl Renderer {
                     &self.program,
                     &uniform! {
                         sensors: &*self.buffer,
-                        font: &self.font,
                     },
                     &Default::default(),
                 )
@@ -92,7 +72,6 @@ impl Renderer {
         }
         frame.finish().unwrap();
         self.frame += 1;
-        unsafe { self.context.as_ref().rebind_textures() }
     }
 }
 

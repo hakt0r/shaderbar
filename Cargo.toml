@@ -11,7 +11,6 @@ color-eyre = "0.6.3"
 colored = "2.1.0"
 dirs = "5.0.1"
 epoxy = "0.1.0"
-gethostname = "0.4.3"
 glib = "0.19.7"
 glium = "0.34.0"
 gtk4 = "0.8.2"
@@ -25,6 +24,7 @@ system-tray = "0.2.0"
 tokio = { version = "1.37.0", features = ["full"] }
 tracing = "0.1.40"
 walkdir = "2.5.0"
+whoami = "1.5.1"
 
 [build]
 rustflags = ["-C", "target-cpu=native", "-Z", "threads=8"]
@@ -34,9 +34,3 @@ codegen-units = 1
 lto = "fat"
 strip = "debuginfo"
 debug = false
-
-[package.metadata.patch]
-crates = ["glium"]
-
-[patch.crates-io]
-glium = { path = "./target/patch/glium-0.34.0" }

@@ -2,7 +2,7 @@ macro_rules! global {
     ($name:ident, $type:ty, $default:expr) => {
         pub fn $name() -> &'static mut $type {
             static mut VALUE: Option<$type> = None;
-            unsafe { VALUE.get_or_insert_with(|| $default).borrow_mut() }
+            unsafe { VALUE.get_or_insert_with(|| $default) }
         }
     };
 }
