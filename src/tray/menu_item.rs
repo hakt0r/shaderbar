@@ -138,7 +138,7 @@ impl MenuItems for TrayIcon {
             if !has_submenu {
                 self.connect_activate(id, &item.button);
             } else {
-                self.connect_submenu_activate(id, &item.button);
+                self.connect_submenu_activate(label.clone(), &item.button);
                 self.add_submenu(id, label, submenu.clone());
             }
             if !was_cached {

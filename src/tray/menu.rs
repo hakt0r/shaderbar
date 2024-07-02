@@ -32,9 +32,9 @@ impl RootMenu for TrayIcon {
         touched_keys().clear();
         touch_or_init_cached_box(
             &format!("{}/menu/0", self.address),
-            self.menu_path.as_str(),
-            |rows| self.popover.set_child(Some(rows.as_ref())),
-            move |rows| self.add_menu_items(rows, menu.submenus.clone()),
+            &self.menu_path,
+            |rows, _| self.popover.set_child(Some(rows.as_ref())),
+            move |rows, _| self.add_menu_items(rows, menu.submenus.clone()),
         );
         // mop up any items that were removed
         let cache_key = format!("{}/", self.address);

@@ -135,7 +135,7 @@ pub fn cached_box(id: &String) -> (Arc<Box>, bool) {
     }
 }
 
-pub fn touch_cached_box(cache_key: &str, alias: &str) -> (Arc<Box>, bool) {
+pub fn touch_cached_box(cache_key: &String, alias: &String) -> (Arc<Box>, bool) {
     eprintln!(
         "[{}]: {}({}) @{}",
         "tray".green(),
@@ -144,18 +144,18 @@ pub fn touch_cached_box(cache_key: &str, alias: &str) -> (Arc<Box>, bool) {
         alias.magenta()
     );
     touched_keys().push(cache_key.to_string());
-    cached_box(&cache_key.to_string())
+    cached_box(&cache_key)
 }
 
 pub fn touch_or_init_cached_box(
-    cache_key: &str,
-    alias: &str,
-    init: impl FnOnce(Arc<Box>),
-    touch: impl FnOnce(Arc<Box>) -> Arc<Box>,
+    cache_key: &String,
+    alias: &String,
+    init: impl FnOnce(Arc<Box>, &String),
+    touch: impl FnOnce(Arc<Box>, &String) -> Arc<Box>,
 ) {
     let (widget, was_cached) = touch_cached_box(cache_key, alias);
-    touch(Arc::clone(&widget));
+    touch(Arc::clone(&widget), &cache_key);
     if !was_cached {
-        init(Arc::clone(&widget));
+        init(Arc::clone(&widget), &cache_key);
     }
 }

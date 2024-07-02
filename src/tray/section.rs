@@ -32,14 +32,14 @@ impl SectionMenuItems for TrayIcon {
             touch_or_init_cached_box(
                 &cache_key,
                 section[0].label.as_ref().unwrap_or(&String::from("<NULL>")),
-                |section_menu| {
+                |section_menu, _| {
                     section_menu.add_css_class("section");
                     if sections == 0 {
                         section_menu.add_css_class("first");
                     }
                     menu.append(section_menu.as_ref());
                 },
-                move |section_menu| {
+                move |section_menu, _| {
                     self.add_menu_section(Arc::clone(&section_menu), items_for_section)
                 },
             );
