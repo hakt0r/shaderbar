@@ -8,8 +8,7 @@
 */
 
 use super::{
-    menu::touch_or_init_menu, menu_item::MenuItem as TrayMenuItem, submenu::Submenu, tray,
-    tray_icon::TrayIcon,
+    menu_item::MenuItem as TrayMenuItem, submenu::Submenu, touched_keys, tray, tray_icon::TrayIcon,
 };
 use crate::utils::global;
 use colored::Colorize;
@@ -17,7 +16,7 @@ use glib::spawn_future_local;
 use gtk4::{
     glib, prelude::*, Box, Button, CheckButton, Image, Label, Orientation::Horizontal, Widget,
 };
-use std::sync::Arc;
+use std::{cell::Cell, collections::HashMap, sync::Arc};
 use system_tray::{
     client::ActivateRequest,
     menu::{
@@ -32,6 +31,61 @@ global!(
     Vec<&'static str>,
     vec!["bluetooth-symbolic", "bluetooth-disabled-symbolic"]
 );
+
+/*
+ ███╗   ███╗███████╗███╗   ██╗██╗   ██╗    ██╗████████╗███████╗███╗   ███╗███████╗
+ ████╗ ████║██╔════╝████╗  ██║██║   ██║    ██║╚══██╔══╝██╔════╝████╗ ████║██╔════╝
+ ██╔████╔██║█████╗  ██╔██╗ ██║██║   ██║    ██║   ██║   █████╗  ██╔████╔██║███████╗
+ ██║╚██╔╝██║██╔══╝  ██║╚██╗██║██║   ██║    ██║   ██║   ██╔══╝  ██║╚██╔╝██║╚════██║
+ ██║ ╚═╝ ██║███████╗██║ ╚████║╚██████╔╝    ██║   ██║   ███████╗██║ ╚═╝ ██║███████║
+ ╚═╝     ╚═╝╚══════╝╚═╝  ╚═══╝ ╚═════╝     ╚═╝   ╚═╝   ╚══════╝╚═╝     ╚═╝╚══════╝
+*/
+
+global!(
+    menu_item,
+    HashMap<String, Arc<Cell<TrayMenuItem>>>,
+    HashMap::new()
+);
+
+pub fn touch_or_init_menu_item(
+    cache_key: &str,
+    label: Option<String>,
+    enabled: bool,
+    icon_name: Option<String>,
+    toggle_type: ToggleType,
+    toggle_state: ToggleState,
+    has_submenu: bool,
+) -> (Arc<Cell<TrayMenuItem>>, bool) {
+    touched_keys().push(cache_key.to_string());
+    let cached_item = menu_item().get(cache_key);
+    let label_clone = label.unwrap().clone();
+    let (item, was_cached) = match cached_item {
+        Some(item) => (Arc::clone(item), true),
+        None => {
+            menu_item().insert(
+                cache_key.to_string(),
+                Arc::new(Cell::new(TrayMenuItem::new(
+                    cache_key,
+                    enabled,
+                    label_clone.as_str(),
+                    icon_name,
+                    toggle_type,
+                    toggle_state,
+                    has_submenu,
+                ))),
+            );
+            eprintln!(
+                "[{}]: {}({}) @{}",
+                "tray".green(),
+                "add_menu_item".yellow(),
+                cache_key,
+                label_clone
+            );
+            (Arc::clone(menu_item().get(cache_key).unwrap()), false)
+        }
+    };
+    (item, was_cached)
+}
 
 pub struct MenuItem {
     pub id: String,
@@ -67,7 +121,7 @@ impl MenuItems for TrayIcon {
         let has_submenu = !submenu.is_empty();
         let label = label.unwrap();
 
-        let (item, was_cached) = touch_or_init_menu(
+        let (item, was_cached) = touch_or_init_menu_item(
             &format!("{}/item/{}", self.address, id),
             Some(label.clone()),
             enabled,

@@ -1,59 +1,7 @@
-use crate::utils::global;
 use colored::Colorize;
-use gtk4::{Box, MenuButton, Popover};
-use std::{collections::HashMap, sync::Arc};
+use gtk4::{MenuButton, Popover};
+use std::sync::Arc;
 use system_tray::item::StatusNotifierItem;
-
-global!(touched_keys, Vec<String>, Vec::new());
-
-/*
-██████╗  ██████╗ ██╗  ██╗███████╗███████╗
-██╔══██╗██╔═══██╗╚██╗██╔╝██╔════╝██╔════╝
-██████╔╝██║   ██║ ╚███╔╝ █████╗  ███████╗
-██╔══██╗██║   ██║ ██╔██╗ ██╔══╝  ╚════██║
-██████╔╝╚██████╔╝██╔╝ ██╗███████╗███████║
-╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝
-*/
-
-global!(tray_menu_widget, HashMap<String, Arc<Box>>, HashMap::new());
-
-pub fn cached_box(id: &String) -> (Arc<Box>, bool) {
-    match tray_menu_widget().get(id) {
-        Some(widget) => (Arc::clone(widget), true),
-        None => {
-            let rows = Box::builder()
-                .orientation(gtk4::Orientation::Vertical)
-                .build();
-            tray_menu_widget().insert(id.clone(), Arc::new(rows));
-            (Arc::clone(tray_menu_widget().get(id).unwrap()), false)
-        }
-    }
-}
-
-pub fn touch_cached_box(cache_key: &str, alias: &str) -> (Arc<Box>, bool) {
-    eprintln!(
-        "[{}]: {}({}) @{}",
-        "tray".green(),
-        "cached_box".yellow(),
-        cache_key.blue(),
-        alias.magenta()
-    );
-    touched_keys().push(cache_key.to_string());
-    cached_box(&cache_key.to_string())
-}
-
-pub fn touch_or_init_cached_box(
-    cache_key: &str,
-    alias: &str,
-    init: impl FnOnce(Arc<Box>),
-    touch: impl FnOnce(Arc<Box>) -> Arc<Box>,
-) {
-    let (widget, was_cached) = touch_cached_box(cache_key, alias);
-    touch(Arc::clone(&widget));
-    if !was_cached {
-        init(Arc::clone(&widget));
-    }
-}
 
 /*
  ████████╗██████╗  █████╗ ██╗   ██╗    ██╗ ██████╗ ██████╗ ███╗   ██╗

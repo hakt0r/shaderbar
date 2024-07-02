@@ -1,9 +1,4 @@
-use super::{
-    menu::RootMenu,
-    tray,
-    tray_icon::{touch_or_init_cached_box, tray_menu_widget},
-    TrayIcon,
-};
+use super::{menu::RootMenu, touch_or_init_cached_box, tray, tray_menu_widget, TrayIcon};
 use colored::Colorize;
 use gtk4::{prelude::*, Box, Orientation::Horizontal};
 use system_tray::menu::MenuItem;
