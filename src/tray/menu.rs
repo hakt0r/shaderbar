@@ -1,8 +1,64 @@
-use super::{menu_item::MenuItem as TrayMenuItem, section::*, tray_item::*};
+use super::{menu_item::MenuItem as TrayMenuItem, section::*, tray_icon::*};
+use crate::utils::global;
 use colored::Colorize;
 use gtk4::{prelude::*, Box};
-use std::sync::Arc;
-use system_tray::menu::{MenuItem, TrayMenu};
+use std::{cell::Cell, collections::HashMap, sync::Arc};
+use system_tray::menu::{MenuItem, ToggleState, ToggleType, TrayMenu};
+
+/*
+ ███╗   ███╗███████╗███╗   ██╗██╗   ██╗███████╗
+ ████╗ ████║██╔════╝████╗  ██║██║   ██║██╔════╝
+ ██╔████╔██║█████╗  ██╔██╗ ██║██║   ██║███████╗
+ ██║╚██╔╝██║██╔══╝  ██║╚██╗██║██║   ██║╚════██║
+ ██║ ╚═╝ ██║███████╗██║ ╚████║╚██████╔╝███████║
+ ╚═╝     ╚═╝╚══════╝╚═╝  ╚═══╝ ╚═════╝ ╚══════╝
+*/
+
+global!(
+    menu_item,
+    HashMap<String, Arc<Cell<TrayMenuItem>>>,
+    HashMap::new()
+);
+
+pub fn touch_or_init_menu(
+    cache_key: &str,
+    label: Option<String>,
+    enabled: bool,
+    icon_name: Option<String>,
+    toggle_type: ToggleType,
+    toggle_state: ToggleState,
+    has_submenu: bool,
+) -> (Arc<Cell<TrayMenuItem>>, bool) {
+    touched_keys().push(cache_key.to_string());
+    let cached_item = menu_item().get(cache_key);
+    let label_clone = label.unwrap().clone();
+    let (item, was_cached) = match cached_item {
+        Some(item) => (Arc::clone(item), true),
+        None => {
+            menu_item().insert(
+                cache_key.to_string(),
+                Arc::new(Cell::new(TrayMenuItem::new(
+                    cache_key,
+                    enabled,
+                    label_clone.as_str(),
+                    icon_name,
+                    toggle_type,
+                    toggle_state,
+                    has_submenu,
+                ))),
+            );
+            eprintln!(
+                "[{}]: {}({}) @{}",
+                "tray".green(),
+                "add_menu_item".yellow(),
+                cache_key,
+                label_clone
+            );
+            (Arc::clone(menu_item().get(cache_key).unwrap()), false)
+        }
+    };
+    (item, was_cached)
+}
 
 /*
  ████████╗██████╗  █████╗ ██╗   ██╗    ██████╗  ██████╗  ██████╗ ████████╗    ███╗   ███╗███████╗███╗   ██╗██╗   ██╗
@@ -25,7 +81,7 @@ impl RootMenu for TrayIcon {
     fn update_menu(self: &Self, menu: &TrayMenu) {
         touched_keys().clear();
         touch_or_init_cached_box(
-            &format!("{}/{}", self.address, self.menu_path),
+            &format!("{}/menu/0", self.address),
             self.menu_path.as_str(),
             |rows| self.popover.set_child(Some(rows.as_ref())),
             move |rows| self.add_menu_items(rows, menu.submenus.clone()),

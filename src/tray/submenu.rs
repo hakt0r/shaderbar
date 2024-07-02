@@ -1,7 +1,7 @@
 use super::{
     menu::RootMenu,
     tray,
-    tray_item::{touch_or_init_cached_box, tray_menu_widget},
+    tray_icon::{touch_or_init_cached_box, tray_menu_widget},
     TrayIcon,
 };
 use colored::Colorize;
@@ -45,11 +45,18 @@ impl Submenu for TrayIcon {
                 address,
                 id
             );
-            let item = tray().items.get(&address).unwrap();
-            item.button
-                .popover()
-                .unwrap()
-                .set_child(Some(item.popover.as_ref()));
+            let cache_key = format!("{}/menu/0", address);
+            match tray_menu_widget().get(&cache_key) {
+                Some(tray_menu_widget) => {
+                    let item = tray().items.get(&address).unwrap();
+                    item.button
+                        .popover()
+                        .unwrap()
+                        .set_child(Some(tray_menu_widget.as_ref()));
+                    return;
+                }
+                None => (),
+            }
         });
     }
 
@@ -64,7 +71,7 @@ impl Submenu for TrayIcon {
                 menu_path,
                 id
             );
-            let cache_key = format!("{}/menu/*/submenu/{}", address, id);
+            let cache_key = format!("{}/menu/0/submenu/{}", address, id);
             match tray_menu_widget().get(&cache_key) {
                 Some(tray_menu_widget) => {
                     let item = tray().items.get(&address).unwrap();

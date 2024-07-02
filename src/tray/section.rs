@@ -1,6 +1,6 @@
 use super::{
     menu_item::*,
-    tray_item::{touch_or_init_cached_box, TrayIcon},
+    tray_icon::{touch_or_init_cached_box, TrayIcon},
 };
 use gtk4::{prelude::*, Box};
 use std::sync::Arc;

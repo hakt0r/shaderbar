@@ -8,10 +8,8 @@
 */
 
 use super::{
-    menu_item::MenuItem as TrayMenuItem,
-    submenu::Submenu,
-    tray,
-    tray_item::{touch_or_init_menu, TrayIcon},
+    menu::touch_or_init_menu, menu_item::MenuItem as TrayMenuItem, submenu::Submenu, tray,
+    tray_icon::TrayIcon,
 };
 use crate::utils::global;
 use colored::Colorize;

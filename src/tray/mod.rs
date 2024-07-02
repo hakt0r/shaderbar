@@ -2,10 +2,10 @@ mod menu;
 mod menu_item;
 mod section;
 mod submenu;
-mod tray_item;
+mod tray_icon;
 
 use menu::RootMenu;
-use tray_item::TrayIcon;
+use tray_icon::TrayIcon;
 
 use colored::Colorize;
 use glib::spawn_future_local;
