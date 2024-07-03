@@ -1,12 +1,13 @@
 use super::{
+    menu_box,
     menu_item::{menu_item, MenuItem as TrayMenuItem},
     section::*,
     touch_or_init_cached_box, touched_keys,
     tray_icon::*,
-    tray_menu_widget,
 };
 use colored::Colorize;
 use gtk4::{prelude::*, Box};
+use regex::Regex;
 use std::sync::Arc;
 use system_tray::menu::{MenuItem, TrayMenu};
 
@@ -33,7 +34,11 @@ impl RootMenu for TrayIcon {
         touch_or_init_cached_box(
             &format!("{}/menu/0", self.address),
             &self.menu_path,
-            |rows, _| self.popover.set_child(Some(rows.as_ref())),
+            |rows, cache_key| {
+                self.stack
+                    .add_named(rows.as_ref(), Some(cache_key.as_str()));
+                self.stack.set_visible_child_name(cache_key);
+            },
             move |rows, _| self.add_menu_items(rows, menu.submenus.clone()),
         );
         // mop up any items that were removed
@@ -44,17 +49,24 @@ impl RootMenu for TrayIcon {
     }
 
     fn remove_unused_menus(self: &Self, cache_key: &str, touched_keys: &[String]) {
-        let ekeys = Vec::from_iter(
-            tray_menu_widget()
-                .keys()
-                .filter(|key| key.starts_with(cache_key)),
-        );
+        let ekeys = Vec::from_iter(menu_box().keys().filter(|key| key.starts_with(cache_key)));
+        let regex_is_submenu = Regex::new(r"submenu/[^/]+$").unwrap();
         for key in ekeys {
             if !touched_keys.contains(&key) {
                 eprintln!("[{}]: {}({})", "tray".green(), "remove_menu".red(), key);
-                let item = tray_menu_widget().get(&key.clone()).unwrap();
-                item.unparent();
-                tray_menu_widget().remove(&key.clone());
+                let item = Arc::clone(menu_box().get(&key.clone()).unwrap());
+                if self.stack.child_by_name(key.as_str()).is_some() {
+                    self.stack.remove(item.as_ref());
+                }
+                if item.parent().is_some() {
+                    item.unparent();
+                }
+                menu_box().remove(&key.clone());
+                if regex_is_submenu.is_match(&key) {
+                    let key = &format!("{}/menu/0", self.address);
+                    eprintln!("[{}]: {}({})", "tray".green(), "show_menu".yellow(), key);
+                    self.stack.set_visible_child_name(key);
+                }
             }
         }
     }
@@ -67,7 +79,9 @@ impl RootMenu for TrayIcon {
                 let item = menu_item().get(&key.clone()).unwrap();
                 unsafe {
                     let item: &mut TrayMenuItem = &mut *Arc::clone(&item).as_ptr();
-                    item.button.unparent();
+                    if item.button.parent().is_some() {
+                        item.button.unparent();
+                    }
                 }
                 menu_item().remove(&key.clone());
             }

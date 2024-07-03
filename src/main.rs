@@ -8,7 +8,7 @@ mod wallpaper;
 
 use crate::sensors::Sensors;
 use crate::state::state;
-use crate::tray::init_tray_icons;
+use crate::tray::tray;
 use crate::wallpaper::init_wallpaper;
 use config::config;
 use gl::*;
@@ -208,7 +208,7 @@ fn date_time_widget() {
 fn post_init(config: &config::Config) {
     spawn_future_local(init_stylesheet());
     init_wallpaper(config);
-    init_tray_icons();
+    tray();
 }
 
 fn load_epoxy() {

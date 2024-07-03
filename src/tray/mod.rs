@@ -24,26 +24,6 @@ pub struct Tray {
 crate::utils::global_init!(tray, Tray, init_tray);
 
 fn init_tray() -> Tray {
-    return Tray {
-        client: None,
-        items: HashMap::new(),
-        widget: gtk4::Box::builder()
-            .spacing(0)
-            .orientation(gtk4::Orientation::Horizontal)
-            .build(),
-    };
-}
-
-/*
-  ██████╗██╗     ██╗███████╗███╗   ██╗████████╗
- ██╔════╝██║     ██║██╔════╝████╗  ██║╚══██╔══╝
- ██║     ██║     ██║█████╗  ██╔██╗ ██║   ██║
- ██║     ██║     ██║██╔══╝  ██║╚██╗██║   ██║
- ╚██████╗███████╗██║███████╗██║ ╚████║   ██║
-  ╚═════╝╚══════╝╚═╝╚══════╝╚═╝  ╚═══╝   ╚═╝
-*/
-
-pub fn init_tray_icons() {
     spawn_future_local(async move {
         let pid: u32 = std::process::id();
         let process_name = "shaderbar";
@@ -98,6 +78,14 @@ pub fn init_tray_icons() {
             }
         }
     });
+    return Tray {
+        client: None,
+        items: HashMap::new(),
+        widget: gtk4::Box::builder()
+            .spacing(0)
+            .orientation(gtk4::Orientation::Horizontal)
+            .build(),
+    };
 }
 
 /*
@@ -120,17 +108,17 @@ global!(touched_keys, Vec<String>, Vec::new());
 ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝
 */
 
-global!(tray_menu_widget, HashMap<String, Arc<Box>>, HashMap::new());
+global!(menu_box, HashMap<String, Arc<Box>>, HashMap::new());
 
 pub fn cached_box(id: &String) -> (Arc<Box>, bool) {
-    match tray_menu_widget().get(id) {
+    match menu_box().get(id) {
         Some(widget) => (Arc::clone(widget), true),
         None => {
             let rows = Box::builder()
                 .orientation(gtk4::Orientation::Vertical)
                 .build();
-            tray_menu_widget().insert(id.clone(), Arc::new(rows));
-            (Arc::clone(tray_menu_widget().get(id).unwrap()), false)
+            menu_box().insert(id.clone(), Arc::new(rows));
+            (Arc::clone(menu_box().get(id).unwrap()), false)
         }
     }
 }

@@ -22,10 +22,9 @@ Originally a LUA script for [ironbar](https://github.com/JakeStanger/ironbar), I
 - [ ] Configuration file
 - [x] Basic sensors (very specific to my system xD)
 - [x] Default shader (uniforms are going to change, stupid opengl es)
-- [x] Text rendering (ish, dunno if i want to keep it)
 - [ ] Sensor Detection
 - [ ] Sensor Configuration
-- [x] Tray (WIP, but basically working)
+- [x] Tray (so far, so good)
 - [x] Wallpaper (it was a joke, but it's there now xD)
 - [ ] Notifications (escalating quickly xD)
 
