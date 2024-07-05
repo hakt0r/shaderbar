@@ -188,9 +188,7 @@ impl MenuItem {
                 Some(icon) => match blacklist().contains(&icon.as_str()) {
                     true => Image::builder().build().into(),
                     false => {
-                        eprintln!("Icon: {:?}({:?}", icon, label_text);
                         let icon = Image::from_icon_name(icon.as_str());
-                        eprintln!("Icon: {:?}", icon);
                         icon.into()
                     }
                 },

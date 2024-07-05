@@ -1,13 +1,10 @@
 mod config;
 mod gl;
 mod sensors;
-mod state;
 mod tray;
 mod utils;
 mod wallpaper;
 
-use crate::sensors::Sensors;
-use crate::state::state;
 use crate::tray::tray;
 use crate::wallpaper::init_wallpaper;
 use config::config;
@@ -40,7 +37,6 @@ global!(
         .build()
 );
 global!(is_ready, Option<bool>, Some(false));
-global!(sensors, Sensors, Sensors::new());
 
 #[tokio::main]
 async fn main() -> glib::ExitCode {
@@ -62,10 +58,9 @@ async fn main() -> glib::ExitCode {
 
 async fn pre_init() {
     load_epoxy();
-    state();
-    sensors().read();
-    read_sensors();
-    read_sensors_lowfreq();
+    sensors::detect().await;
+    sensors::spawn_read_sensors();
+    sensors::spawn_read_sensors_lowfreq();
     render_timer();
 }
 
@@ -253,24 +248,6 @@ fn render_timer() {
         loop {
             glib::timeout_future(Duration::from_millis(1000 / 30)).await;
             widget().queue_render();
-        }
-    });
-}
-
-fn read_sensors() {
-    spawn_future_local(async move {
-        loop {
-            sensors().read();
-            glib::timeout_future(Duration::from_millis(1000 / 30)).await;
-        }
-    });
-}
-
-fn read_sensors_lowfreq() {
-    spawn_future_local(async move {
-        loop {
-            glib::timeout_future(Duration::from_secs(1)).await;
-            sensors().read_lowfreq();
         }
     });
 }

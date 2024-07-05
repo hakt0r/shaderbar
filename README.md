@@ -19,10 +19,11 @@ Originally a LUA script for [ironbar](https://github.com/JakeStanger/ironbar), I
 
 ## In development
 
-- [ ] Configuration file
+- [x] Configuration file
+- [x] Styling (css, glsl)
 - [x] Basic sensors (very specific to my system xD)
 - [x] Default shader (uniforms are going to change, stupid opengl es)
-- [ ] Sensor Detection
+- [x] Sensor Detection
 - [ ] Sensor Configuration
 - [x] Tray (so far, so good)
 - [x] Wallpaper (it was a joke, but it's there now xD)

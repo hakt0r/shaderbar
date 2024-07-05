@@ -1,3 +1,5 @@
+pub mod detect;
+
 /*
  ███████╗███████╗███╗   ██╗███████╗ ██████╗ ██████╗ ███████╗
  ██╔════╝██╔════╝████╗  ██║██╔════╝██╔═══██╗██╔══██╗██╔════╝
@@ -7,12 +9,15 @@
  ╚══════╝╚══════╝╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝
 */
 
-use crate::state::NETWORK_INTERFACES;
-use crate::state::TEMPERATURE;
-use crate::state::*;
+use crate::utils::global;
 use chrono::Local;
 use chrono::Timelike;
+use colored::Colorize;
+use glib::spawn_future_local;
+use glib::timeout_future;
 use std::cmp::max;
+use std::collections::HashMap;
+use std::time::Duration;
 
 /*
  ███████╗████████╗██████╗ ██╗   ██╗ ██████╗████████╗
@@ -23,33 +28,71 @@ use std::cmp::max;
  ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝  ╚═════╝   ╚═╝
 */
 
+global!(sensors, Sensors, Sensors::new());
+
+#[derive(Debug, Clone)]
 pub struct Sensors {
     pub hour: u8,
     pub minute: u8,
     pub second: u8,
+    pub bat_ac_connected_path: String,
+    pub bat_ac_connected: u8,
+    pub bat_capacity_path: String,
+    pub bat_status_path: String,
+    pub bat_status: u8,
+    pub bat: u8,
     pub cpu_count: u8,
-    pub cpu_load: Vec<u8>,
+    pub cpu_fan_path: String,
+    pub cpu_fan: u8,
     pub cpu_last_idle: Vec<u64>,
     pub cpu_last_total: Vec<u64>,
-    pub cpu_temp: u8,
-    pub gpu_temp: u8,
-    pub cpu_fan: u8,
-    pub gpu_fan: u8,
-    pub bat: u8,
-    pub bat_status: u8,
-    pub net_count: u8,
-    pub net_rx: Vec<u8>,
-    pub net_last_rx: Vec<u64>,
-    pub net_max_rx: Vec<u64>,
-    pub net_tx: Vec<u8>,
-    pub net_last_tx: Vec<u64>,
-    pub net_max_tx: Vec<u64>,
-    pub net_allowed: std::collections::HashMap<String, NetworkInterface>,
-    pub mem: Vec<u8>,
+    pub cpu_load: Vec<u8>,
     pub cpu_temp_path: String,
-    pub gpu_temp_path: String,
-    pub cpu_fan_path: String,
+    pub cpu_temp: u8,
+    pub gpu_load: Vec<u8>,
+    pub gpu_load_path: String,
     pub gpu_fan_path: String,
+    pub gpu_fan: u8,
+    pub gpu_temp_path: String,
+    pub gpu_temp: u8,
+    pub mem: Vec<u8>,
+    pub net_allowed: std::collections::HashMap<String, NetworkInterface>,
+    pub net_count: u8,
+    pub net_last_rx: Vec<u64>,
+    pub net_last_tx: Vec<u64>,
+    pub net_max_rx: Vec<u64>,
+    pub net_max_tx: Vec<u64>,
+    pub net_rx: Vec<u8>,
+    pub net_tx: Vec<u8>,
+}
+
+/*
+ ████████╗██╗  ██╗██████╗ ███████╗ █████╗ ██████╗ ███████╗
+ ╚══██╔══╝██║  ██║██╔══██╗██╔════╝██╔══██╗██╔══██╗██╔════╝
+    ██║   ███████║██████╔╝█████╗  ███████║██║  ██║███████╗
+    ██║   ██╔══██║██╔══██╗██╔══╝  ██╔══██║██║  ██║╚════██║
+    ██║   ██║  ██║██║  ██║███████╗██║  ██║██████╔╝███████║
+    ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═════╝ ╚══════╝
+*/
+
+pub fn spawn_read_sensors() {
+    sensors().read();
+    spawn_future_local(async move {
+        loop {
+            sensors().read();
+            timeout_future(Duration::from_millis(1000 / 30)).await;
+        }
+    });
+}
+
+pub fn spawn_read_sensors_lowfreq() {
+    sensors().read_lowfreq();
+    spawn_future_local(async move {
+        loop {
+            timeout_future(Duration::from_secs(1)).await;
+            sensors().read_lowfreq();
+        }
+    });
 }
 
 /*
@@ -61,37 +104,101 @@ pub struct Sensors {
  ╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝
 */
 
+pub async fn detect() {
+    let detected = detect::detect_sensors().await;
+    let sensors = sensors();
+    for (k, v) in detected.iter() {
+        match k.as_str() {
+            "cpu.temp" => sensors.cpu_temp_path = v.to_string(),
+            "gpu.temp" => sensors.gpu_temp_path = v.to_string(),
+            "cpu.fan" => sensors.cpu_fan_path = v.to_string(),
+            "gpu.fan" => sensors.gpu_fan_path = v.to_string(),
+            "gpu[0].usage" => {
+                let count = detected.get("gpu.count").unwrap().to_u64();
+                sensors.gpu_load_path = v.to_string();
+                sensors.gpu_load = vec![0u8; count as usize];
+            }
+            "ethernet.interface" => {
+                let iface = detected.get("ethernet.interface").unwrap().to_string();
+                sensors.net_allowed.insert(
+                    iface,
+                    NetworkInterface {
+                        type_: "ethernet".to_string(),
+                        icon: "".to_string(),
+                    },
+                );
+            }
+            "wifi.interface" => {
+                let iface = detected.get("wifi.interface").unwrap().to_string();
+                sensors.net_allowed.insert(
+                    iface,
+                    NetworkInterface {
+                        type_: "wifi".to_string(),
+                        icon: "".to_string(),
+                    },
+                );
+            }
+            "battery.capacity" => {
+                sensors.bat_capacity_path = detected.get("battery.capacity").unwrap().to_string();
+            }
+            "battery.status" => {
+                sensors.bat_status_path = detected.get("battery.status").unwrap().to_string();
+            }
+            _ => {}
+        }
+    }
+    eprintln!(
+        "[{}]: {}\n{:?}",
+        "sensors".green(),
+        "detected".yellow(),
+        sensors
+    );
+}
+
+/*
+ ███████╗███████╗███╗   ██╗███████╗ ██████╗ ██████╗ ███████╗
+ ██╔════╝██╔════╝████╗  ██║██╔════╝██╔═══██╗██╔══██╗██╔════╝
+ ███████╗█████╗  ██╔██╗ ██║███████╗██║   ██║██████╔╝███████╗
+ ╚════██║██╔══╝  ██║╚██╗██║╚════██║██║   ██║██╔══██╗╚════██║
+ ███████║███████╗██║ ╚████║███████║╚██████╔╝██║  ██║███████║
+ ╚══════╝╚══════╝╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝
+*/
+
 impl Sensors {
     pub fn new() -> Self {
-        unsafe {
-            Sensors {
-                hour: 0,
-                minute: 0,
-                second: 0,
-                cpu_count: 0,
-                cpu_last_idle: vec![0u64; 0],
-                cpu_last_total: vec![0u64; 0],
-                cpu_load: vec![0u8; 0],
-                cpu_temp: 0,
-                gpu_temp: 0,
-                cpu_fan: 0,
-                gpu_fan: 0,
-                bat: 0,
-                bat_status: 0,
-                net_count: 0,
-                net_rx: vec![0u8; 0],
-                net_last_rx: vec![0u64; 0],
-                net_max_rx: vec![0u64; 0],
-                net_tx: vec![0u8; 0],
-                net_last_tx: vec![0u64; 0],
-                net_max_tx: vec![0u64; 0],
-                net_allowed: NETWORK_INTERFACES.as_ref().unwrap().clone(),
-                mem: vec![0u8; 4],
-                cpu_temp_path: TEMPERATURE.as_ref().unwrap().cpu.to_string(),
-                gpu_temp_path: TEMPERATURE.as_ref().unwrap().gpu.to_string(),
-                cpu_fan_path: FANS.as_ref().unwrap().cpu.to_string(),
-                gpu_fan_path: FANS.as_ref().unwrap().gpu.to_string(),
-            }
+        Sensors {
+            hour: 0,
+            minute: 0,
+            second: 0,
+            bat_ac_connected_path: "".to_string(),
+            bat_ac_connected: 0,
+            bat_capacity_path: "".to_string(),
+            bat_status_path: "".to_string(),
+            bat_status: 0,
+            bat: 0,
+            cpu_count: 0,
+            cpu_fan_path: "".to_string(),
+            cpu_fan: 0,
+            cpu_last_idle: vec![0u64; 0],
+            cpu_last_total: vec![0u64; 0],
+            cpu_load: vec![0u8; 0],
+            cpu_temp_path: "".to_string(),
+            cpu_temp: 0,
+            gpu_load: vec![0u8; 0],
+            gpu_load_path: "".to_string(),
+            gpu_fan_path: "".to_string(),
+            gpu_fan: 0,
+            gpu_temp_path: "".to_string(),
+            gpu_temp: 0,
+            mem: vec![0u8; 4],
+            net_allowed: HashMap::new(),
+            net_count: 0,
+            net_last_rx: vec![0u64; 0],
+            net_last_tx: vec![0u64; 0],
+            net_max_rx: vec![0u64; 0],
+            net_max_tx: vec![0u64; 0],
+            net_rx: vec![0u8; 0],
+            net_tx: vec![0u8; 0],
         }
     }
 
@@ -111,8 +218,8 @@ impl Sensors {
         let gpu_temp = read_number_from_file_sync(&self.gpu_temp_path).unwrap();
         let battery_percentage =
             read_number_from_file_sync("/sys/class/power_supply/BAT0/capacity").unwrap();
-        let battery_status =
-            read_string_from_file_sync("/sys/class/power_supply/BAT0/status").unwrap();
+        let battery_status = read_string_from_file_sync(self.bat_status_path.as_str()).unwrap();
+        self.gpu_load = vec![read_number_from_file_sync(&self.gpu_load_path).unwrap() as u8];
         self.cpu_temp = (255 * cpu_temp / 1000) as u8;
         self.gpu_temp = (255 * gpu_temp / 1000) as u8;
         self.cpu_fan = (255 * cpu_fan / 5000) as u8;
@@ -316,4 +423,23 @@ pub fn read_number_from_file_sync(path: &str) -> Result<u64, std::io::Error> {
 pub fn read_string_from_file_sync(path: &str) -> Result<String, std::io::Error> {
     let contents = std::fs::read_to_string(path)?;
     Ok(contents.trim().to_string())
+}
+
+#[derive(Debug, Clone)]
+pub struct NetworkInterface {
+    pub type_: String,
+    pub icon: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct Temperature {
+    pub cpu: String,
+    pub gpu: String,
+}
+
+#[derive(Debug, Clone)]
+
+pub struct Fans {
+    pub cpu: String,
+    pub gpu: String,
 }

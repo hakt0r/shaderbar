@@ -1,4 +1,4 @@
-use crate::sensors;
+use crate::sensors::sensors;
 use glium::backend::Context;
 use glium::{
     buffer::Mapping, implement_uniform_block, implement_vertex, index::PrimitiveType, uniforms::*,
@@ -108,10 +108,15 @@ pub fn update_uniforms() {
     }
 
     let cpus: usize = s.cpu_count as usize;
-    write_pixel(&mut map, cpus + 0, ptr, s.cpu_temp as u8);
-    write_pixel(&mut map, cpus + 1, ptr, s.gpu_temp as u8);
-    write_pixel(&mut map, cpus + 2, ptr, s.cpu_fan as u8);
-    write_pixel(&mut map, cpus + 3, ptr, s.gpu_fan as u8);
+
+    if s.gpu_load_path != "" {
+        write_pixel(&mut map, cpus + 0 as usize, ptr, s.gpu_load[0] as u8);
+    }
+
+    write_pixel(&mut map, cpus + 1, ptr, s.cpu_temp as u8);
+    write_pixel(&mut map, cpus + 2, ptr, s.gpu_temp as u8);
+    write_pixel(&mut map, cpus + 3, ptr, s.cpu_fan as u8);
+    write_pixel(&mut map, cpus + 4, ptr, s.gpu_fan as u8);
 
     map.gauge_value[0] = s.bat as u32;
     map.gauge_value[1] = 255;

@@ -28,6 +28,34 @@ macro_rules! global_init_async {
         }
     };
 }
+
+macro_rules! early_continue {
+    ($condition:expr) => {
+        if $condition {
+            continue;
+        }
+    };
+}
+
+macro_rules! early_return {
+    ($condition:expr) => {
+        if $condition {
+            return;
+        }
+    };
+}
+
+macro_rules! early_return_value {
+    ($condition:expr, $value:expr) => {
+        if $condition {
+            return $value;
+        }
+    };
+}
+
+pub(crate) use early_continue;
+pub(crate) use early_return;
+pub(crate) use early_return_value;
 pub(crate) use global;
 pub(crate) use global_init;
 pub(crate) use global_init_async;
