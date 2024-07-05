@@ -2799,6 +2799,7 @@ dependencies = [
  "gtk4-layer-shell",
  "image",
  "libloading",
+ "png",
  "rand",
  "regex",
  "serde",

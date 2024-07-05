@@ -1,5 +1,13 @@
 use colored::Colorize;
-use gtk4::{prelude::*, MenuButton, Popover, Stack, StackTransitionType};
+use gtk4::{
+    gdk::{
+        gdk_pixbuf::{Colorspace, Pixbuf},
+        glib::Bytes,
+        prelude::*,
+    },
+    prelude::*,
+    Image, MenuButton, Popover, Stack, StackTransitionType,
+};
 use std::sync::Arc;
 use system_tray::item::StatusNotifierItem;
 
@@ -31,15 +39,37 @@ impl TrayIcon {
             id,
             status_notifier_item.id
         );
-        let button = MenuButton::builder().css_classes(["tray"]).build();
-        let default_icon = &"volume-up".to_string();
         let icon_name = status_notifier_item
             .icon_name
             .as_ref()
-            .unwrap_or(default_icon);
-        button.set_icon_name(icon_name.as_str());
+            .unwrap_or(&status_notifier_item.id);
         let popover = Arc::new(Popover::builder().build());
+        let button = MenuButton::builder().css_classes(["tray"]).build();
         button.set_popover(Some(popover.as_ref()));
+        let image = match status_notifier_item.icon_pixmap.as_ref() {
+            Some(icon_pixbuf) => {
+                let pixbuf = icon_pixbuf[0].clone();
+                let pixels = Bytes::from_owned(pixbuf.pixels.to_vec());
+                let width = pixbuf.width;
+                let height = pixbuf.height;
+                let texture = gtk4::gdk::Texture::for_pixbuf(&Pixbuf::from_bytes(
+                    &pixels,
+                    Colorspace::Rgb,
+                    true,
+                    8,
+                    width,
+                    height,
+                    4 * width,
+                ));
+                Image::from_paintable(Some(&texture))
+            }
+            None => Image::from_icon_name(icon_name),
+        };
+        image.add_css_class("icon");
+        let row = gtk4::CenterBox::builder().build();
+        row.set_center_widget(Some(&image));
+        button.set_child(Some(&row));
+        button.set_width_request(24);
         let stack = Stack::builder()
             .transition_type(StackTransitionType::SlideLeftRight)
             .transition_duration(100)
