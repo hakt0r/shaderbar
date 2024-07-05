@@ -430,16 +430,3 @@ pub struct NetworkInterface {
     pub type_: String,
     pub icon: String,
 }
-
-#[derive(Debug, Clone)]
-pub struct Temperature {
-    pub cpu: String,
-    pub gpu: String,
-}
-
-#[derive(Debug, Clone)]
-
-pub struct Fans {
-    pub cpu: String,
-    pub gpu: String,
-}

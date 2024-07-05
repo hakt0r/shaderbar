@@ -1,7 +1,5 @@
-use colored::Colorize;
-use std::collections::HashMap;
-
 use crate::utils::early_continue;
+use std::collections::HashMap;
 
 /*
  ███████╗██╗   ██╗███████╗███████╗███████╗
@@ -155,6 +153,7 @@ async fn detect_battery(mut map: HashMap<String, Value>) -> HashMap<String, Valu
  ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝╚══════╝
 */
 
+#[allow(dead_code)]
 async fn fs_exists(path: &str) -> bool {
     tokio::fs::metadata(path).await.is_err()
 }
@@ -207,6 +206,7 @@ fn dirname(path: String) -> String {
         .to_string()
 }
 
+#[allow(dead_code)]
 pub async fn read_string_from_file(path: &str) -> String {
     tokio::fs::read_to_string(path)
         .await

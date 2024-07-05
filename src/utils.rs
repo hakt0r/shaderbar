@@ -37,6 +37,7 @@ macro_rules! early_continue {
     };
 }
 
+#[allow(unused_macros)]
 macro_rules! early_return {
     ($condition:expr) => {
         if $condition {
@@ -45,6 +46,7 @@ macro_rules! early_return {
     };
 }
 
+#[allow(unused_macros)]
 macro_rules! early_return_value {
     ($condition:expr, $value:expr) => {
         if $condition {
@@ -54,7 +56,9 @@ macro_rules! early_return_value {
 }
 
 pub(crate) use early_continue;
+#[allow(unused_imports)]
 pub(crate) use early_return;
+#[allow(unused_imports)]
 pub(crate) use early_return_value;
 pub(crate) use global;
 pub(crate) use global_init;
