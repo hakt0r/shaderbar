@@ -1,4 +1,4 @@
-use super::{menu_item::*, touch_or_init_cached_box, tray_icon::TrayIcon};
+use super::{cached_box, menu_item::*, tray_icon::TrayIcon};
 use gtk4::{prelude::*, Box};
 use std::sync::Arc;
 use system_tray::menu::MenuItem;
@@ -29,7 +29,7 @@ impl SectionMenuItems for TrayIcon {
         for section in to_sections(items) {
             let items_for_section = section.clone();
             let cache_key = &format!("{}/{}", cache_key, section[0].id);
-            touch_or_init_cached_box(
+            cached_box(
                 &cache_key,
                 section[0].label.as_ref().unwrap_or(&String::from("<NULL>")),
                 |section_menu, _| {

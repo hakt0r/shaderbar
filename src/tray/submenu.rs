@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::{menu::RootMenu, touch_or_init_cached_box, TrayIcon};
+use super::{cached_box, menu::RootMenu, TrayIcon};
 use colored::Colorize;
 use gtk4::{prelude::*, Box, Orientation::Horizontal};
 use system_tray::menu::MenuItem;
@@ -14,7 +14,7 @@ pub trait Submenu {
 
 impl Submenu for TrayIcon {
     fn add_submenu(self: &Self, id: i32, label: String, submenu: Vec<MenuItem>) {
-        touch_or_init_cached_box(
+        cached_box(
             &format!("{}/menu/0/submenu/{}", self.address, label).to_string(),
             &label,
             |rows, cache_key| {

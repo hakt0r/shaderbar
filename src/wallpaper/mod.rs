@@ -135,7 +135,6 @@ fn create_wallpaper_for_monitor(monitor: &Monitor) {
 
     window.add_css_class("wallpaper");
 
-    window.show();
     window.present();
 
     wallpaper_windows().insert(monitor.clone(), window);

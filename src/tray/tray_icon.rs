@@ -11,6 +11,8 @@ use gtk4::{
 use std::sync::Arc;
 use system_tray::item::StatusNotifierItem;
 
+use crate::utils::early_return;
+
 /*
  ████████╗██████╗  █████╗ ██╗   ██╗    ██╗ ██████╗ ██████╗ ███╗   ██╗
  ╚══██╔══╝██╔══██╗██╔══██╗╚██╗ ██╔╝    ██║██╔════╝██╔═══██╗████╗  ██║
@@ -22,6 +24,7 @@ use system_tray::item::StatusNotifierItem;
 
 pub struct TrayIcon {
     pub button: MenuButton,
+    pub image: Image,
     pub popover: Arc<Popover>,
     pub stack: Arc<Stack>,
     pub status_notifier_item: StatusNotifierItem,
@@ -96,11 +99,41 @@ impl TrayIcon {
         button.add_controller(manager);
         Self {
             button,
+            image,
             popover,
             stack: Arc::new(stack),
             status_notifier_item: status_notifier_item.clone(),
             address: id.clone(),
             menu_path,
         }
+    }
+
+    pub fn set_icon(self: &Self, icon: Option<String>) {
+        eprintln!(
+            "[{}]: {}({:?})",
+            "tray_icon".green(),
+            "set_icon".yellow(),
+            icon.clone(),
+        );
+        early_return!(icon.is_none());
+        let icon = icon.unwrap();
+        self.image.set_icon_name(Some(icon.as_str()));
+    }
+
+    pub fn set_title(self: &Self, title: Option<String>) {
+        eprintln!(
+            "[{}]: {}({:?})",
+            "tray_icon".green(),
+            "set_title".yellow(),
+            title.clone(),
+        );
+    }
+    pub fn set_status(self: &Self, status: system_tray::item::Status) {
+        eprintln!(
+            "[{}]: {}({:?})",
+            "tray_icon".green(),
+            "set_status".yellow(),
+            status,
+        );
     }
 }

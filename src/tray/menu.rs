@@ -1,8 +1,8 @@
 use super::{
-    menu_box,
+    cached_box, menu_box,
     menu_item::{menu_item, MenuItem as TrayMenuItem},
     section::*,
-    touch_or_init_cached_box, touched_keys,
+    touched_keys,
     tray_icon::*,
 };
 use colored::Colorize;
@@ -31,7 +31,7 @@ pub trait RootMenu {
 impl RootMenu for TrayIcon {
     fn update_menu(self: &Self, menu: &TrayMenu) {
         touched_keys().clear();
-        touch_or_init_cached_box(
+        cached_box(
             &format!("{}/menu/0", self.address),
             &self.menu_path,
             |rows, cache_key| {

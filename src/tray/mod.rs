@@ -4,16 +4,21 @@ mod section;
 mod submenu;
 mod tray_icon;
 
-use menu::RootMenu;
-use tray_icon::TrayIcon;
-
+use crate::utils::{global, global_init};
 use colored::Colorize;
 use glib::spawn_future_local;
 use gtk4::{glib, prelude::*, Box};
+use menu::RootMenu;
 use std::{borrow::BorrowMut, collections::HashMap, sync::Arc};
-use system_tray::client::{Client, Event};
+use system_tray::client::UpdateEvent::*;
+use system_tray::client::{Client, Event::*};
+use tray_icon::TrayIcon;
 
-use crate::utils::global;
+macro_rules! log {
+    ($call:expr, $arg:expr) => {
+        eprintln!("[{}]: {}({})", "tray".green(), $call.yellow(), $arg);
+    };
+}
 
 pub struct Tray {
     pub client: Option<Client>,
@@ -21,63 +26,10 @@ pub struct Tray {
     pub widget: gtk4::Box,
 }
 
-crate::utils::global_init!(tray, Tray, init_tray);
+global_init!(tray, Tray, init_tray);
 
 fn init_tray() -> Tray {
-    spawn_future_local(async move {
-        let pid: u32 = std::process::id();
-        let process_name = "shaderbar";
-        let process_id = format!("{}-{}", process_name, pid);
-        let client: Client = Client::new(&process_id).await.unwrap();
-        let rx = &mut client.subscribe();
-        let tray = tray();
-        let widget = tray.widget.clone();
-        tray.client = Some(client);
-
-        while let Ok(ev) = rx.recv().await {
-            let items = tray.items.borrow_mut();
-            match ev {
-                Event::Add(id, item) => {
-                    let existing_item = items.get(&id);
-                    if existing_item.is_some() {
-                        eprintln!("[{}]: {}({})", "tray".green(), "item_exists".yellow(), id);
-                        continue;
-                    }
-                    let item = TrayIcon::new(&id, item.as_ref());
-                    widget.append(&item.button);
-                    items.insert(id, item);
-                }
-                Event::Update(id, item) => match item {
-                    system_tray::client::UpdateEvent::Menu(menu) => {
-                        let tray_item = items.get(&id);
-                        if tray_item.is_none() {
-                            continue;
-                        }
-                        tray_item.unwrap().update_menu(&menu);
-                    }
-                    _ => {
-                        eprintln!(
-                            "[{}]: {}({})",
-                            "tray".green(),
-                            "unhandled_update_event".yellow(),
-                            id
-                        );
-                    }
-                },
-                Event::Remove(id) => {
-                    eprintln!("[{}]: {}({})", "tray".green(), "remove_item".yellow(), id);
-                    let item = items.get(&id);
-                    if item.is_none() {
-                        eprintln!("Item not found: {}", id);
-                        continue;
-                    }
-                    let item = item.unwrap();
-                    widget.remove(&item.button);
-                    items.remove(&id);
-                }
-            }
-        }
-    });
+    spawn_future_local(init_tray_async());
     return Tray {
         client: None,
         items: HashMap::new(),
@@ -88,16 +40,59 @@ fn init_tray() -> Tray {
     };
 }
 
-/*
- ████████╗ ██████╗ ██╗   ██╗ ██████╗██╗  ██╗███████╗██████╗     ██╗  ██╗███████╗██╗   ██╗███████╗
- ╚══██╔══╝██╔═══██╗██║   ██║██╔════╝██║  ██║██╔════╝██╔══██╗    ██║ ██╔╝██╔════╝╚██╗ ██╔╝██╔════╝
-    ██║   ██║   ██║██║   ██║██║     ███████║█████╗  ██║  ██║    █████╔╝ █████╗   ╚████╔╝ ███████╗
-    ██║   ██║   ██║██║   ██║██║     ██╔══██║██╔══╝  ██║  ██║    ██╔═██╗ ██╔══╝    ╚██╔╝  ╚════██║
-    ██║   ╚██████╔╝╚██████╔╝╚██████╗██║  ██║███████╗██████╔╝    ██║  ██╗███████╗   ██║   ███████║
-    ╚═╝    ╚═════╝  ╚═════╝  ╚═════╝╚═╝  ╚═╝╚══════╝╚═════╝     ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚══════╝
-*/
+async fn init_tray_async() {
+    let pid: u32 = std::process::id();
+    let process_name = "shaderbar";
+    let process_id = format!("{}-{}", process_name, pid);
+    let client: Client = Client::new(&process_id).await.unwrap();
+    let rx = &mut client.subscribe();
+    let tray = tray();
+    let widget = tray.widget.clone();
+    tray.client = Some(client);
 
-global!(touched_keys, Vec<String>, Vec::new());
+    while let Ok(ev) = rx.recv().await {
+        let items = tray.items.borrow_mut();
+        match ev {
+            Add(id, item) => {
+                let existing_item = items.get(&id);
+                if existing_item.is_some() {
+                    log!("item_exists", id);
+                    continue;
+                }
+                let item = TrayIcon::new(&id, item.as_ref());
+                widget.append(&item.button);
+                items.insert(id, item);
+            }
+            Update(id, item) => {
+                let tray_item = items.get(&id);
+                if tray_item.is_none() {
+                    log!("UnknownTrayIcon", id);
+                    continue;
+                }
+                let tray_item = tray_item.unwrap();
+                match item {
+                    Menu(menu) => tray_item.update_menu(&menu),
+                    Icon(icon) => tray_item.set_icon(icon),
+                    OverlayIcon(icon) => tray_item.set_icon(icon),
+                    AttentionIcon(icon) => tray_item.set_icon(icon),
+                    Title(title) => tray_item.set_title(title),
+                    Status(status) => tray_item.set_status(status),
+                }
+            }
+            Remove(id) => {
+                log!("remove_item", id);
+                let item = items.get(&id);
+                if item.is_none() {
+                    log!("NotFound", id);
+                    continue;
+                }
+                let item = item.unwrap();
+                widget.remove(&item.button);
+                items.remove(&id);
+            }
+        }
+    }
+}
 
 /*
 ██████╗  ██████╗ ██╗  ██╗███████╗███████╗
@@ -109,41 +104,28 @@ global!(touched_keys, Vec<String>, Vec::new());
 */
 
 global!(menu_box, HashMap<String, Arc<Box>>, HashMap::new());
+global!(touched_keys, Vec<String>, Vec::new());
 
-pub fn cached_box(id: &String) -> (Arc<Box>, bool) {
-    match menu_box().get(id) {
-        Some(widget) => (Arc::clone(widget), true),
-        None => {
-            let rows = Box::builder()
-                .orientation(gtk4::Orientation::Vertical)
-                .build();
-            menu_box().insert(id.clone(), Arc::new(rows));
-            (Arc::clone(menu_box().get(id).unwrap()), false)
-        }
-    }
-}
-
-pub fn touch_cached_box(cache_key: &String, alias: &String) -> (Arc<Box>, bool) {
-    eprintln!(
-        "[{}]: {}({}) @{}",
-        "tray".green(),
-        "cached_box".yellow(),
-        cache_key.blue(),
-        alias.magenta()
-    );
-    touched_keys().push(cache_key.to_string());
-    cached_box(&cache_key)
-}
-
-pub fn touch_or_init_cached_box(
+pub fn cached_box(
     cache_key: &String,
     alias: &String,
     init: impl FnOnce(Arc<Box>, &String),
     touch: impl FnOnce(Arc<Box>, &String) -> Arc<Box>,
 ) {
-    let (widget, was_cached) = touch_cached_box(cache_key, alias);
+    log!("cached_box", format!("{}, {}", cache_key, alias));
+    touched_keys().push(cache_key.to_string());
+    let widget = match menu_box().get(cache_key) {
+        Some(widget) => Arc::clone(widget),
+        None => {
+            let rows = Arc::new(
+                Box::builder()
+                    .orientation(gtk4::Orientation::Vertical)
+                    .build(),
+            );
+            init(Arc::clone(&rows), &cache_key);
+            menu_box().insert(cache_key.clone(), rows);
+            Arc::clone(menu_box().get(cache_key).unwrap())
+        }
+    };
     touch(Arc::clone(&widget), &cache_key);
-    if !was_cached {
-        init(Arc::clone(&widget), &cache_key);
-    }
 }
