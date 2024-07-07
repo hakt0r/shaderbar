@@ -1,6 +1,6 @@
 # shaderbar - the statusbar I always wanted
 
-![Screenshot](img/screenshot_01.png)
+![Screenshot](img/screenshot_02.webp)
 
 This is a simple statusbar that I made for myself when switching from [i3](https://github.com/i3/i3) to [sway](https://github.com/swaywm/sway).
 
