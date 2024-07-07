@@ -1,11 +1,13 @@
 {
   "wallpaper": {
-      "enabled": true
+    "enabled": false,
+    "path": "%user_config%/wallpaper.png",
+    "*COMMENT*": "%user_config% (think $HOME/.config) %config% (think %user_config%/shaderbar)"
   },
   "shaders": [
-      {
-          "name": "default",
-          "path": "/path/to/your/shader.glsl"
-      }
+    {
+      "name": "default",
+      "path": "/path/to/your/shader.glsl"
+    }
   ]
 }
