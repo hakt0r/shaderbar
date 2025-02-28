@@ -7,6 +7,7 @@ use glium::{program, uniform, uniforms::UniformBuffer, Frame, IndexBuffer, Surfa
 use gtk4::{
     gdk::GLContext, prelude::*, subclass::gl_area::GLAreaImpl, subclass::prelude::*, GLArea,
 };
+use std::include_str;
 use std::{cell::RefCell, process::exit, rc::Rc};
 
 pub struct Renderer {
@@ -20,8 +21,8 @@ pub struct Renderer {
 
 impl Renderer {
     fn new(context: Rc<GliumContext>) -> Self {
-        let vertex = read_shader("src/gl/vertex.glsl");
-        let fragment = read_shader("src/gl/fragment_140.glsl");
+        let vertex = include_str!("./vertex.glsl");
+        let fragment = include_str!("./fragment_140.glsl");
         let index = default_index_buffer(&context);
         let triangles = default_vertex_buffer(&context);
 
